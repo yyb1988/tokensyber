@@ -7,6 +7,7 @@ import { generateUniqueCode } from './unique-code.js';
 import { init as coinInit, stop as coinStop, restart as coinRestart, collectAll as coinCollectAll } from './coin-system.js';
 import { init as cabinetInit, renderCabinet, captureThumbnail, setSceneCaptureFns, getDetailControls, getDetailCamera } from './cabinet.js';
 import { getScene, getCamera, getRenderer, resetCamera, rotateLeft, rotateRight, rotateUp, rotateDown, zoomIn, zoomOut } from './scene.js';
+import { disconnect as fuelDisconnect, reconnect as fuelReconnect } from './fuel-client.js';
 
 let uiUpdateInterval = null;
 let currentModelEntry = null;
@@ -19,6 +20,8 @@ export function init() {
   document.getElementById('btn-regenerate').addEventListener('click', onRegenerate);
   document.getElementById('btn-lock').addEventListener('click', onLock);
   document.getElementById('btn-copy-code').addEventListener('click', onCopyCode);
+  document.getElementById('btn-fuel-toggle').addEventListener('click', onFuelToggle);
+  document.getElementById('btn-reconnect-fuel').addEventListener('click', onFuelReconnect);
 
   // 初始化子模块
   coinInit(onCoinCollect);
@@ -254,6 +257,14 @@ async function onPrintComplete() {
 function onCopyCode() {
   const code = document.getElementById('unique-code').textContent;
   copyToClipboard(code);
+}
+
+function onFuelToggle() {
+  fuelDisconnect();
+}
+
+function onFuelReconnect() {
+  fuelReconnect();
 }
 
 function updateUI() {

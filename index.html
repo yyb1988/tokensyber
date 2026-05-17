@@ -60,16 +60,21 @@
       <div id="fuel-status" class="fuel-status">
         <span id="fuel-connection" class="fuel-indicator disconnected" title="燃料泵未连接">●</span>
         <span id="fuel-rate" class="fuel-rate-text">0/min</span>
+        <button id="btn-fuel-toggle" class="btn btn-fuel-toggle hidden" title="断开燃料泵">&#10005;</button>
       </div>
 
       <!-- 燃料泵连接提示（未连接时显示） -->
       <div id="fuel-setup" class="fuel-setup">
         <div class="fuel-setup-title">算力未连接</div>
         <div class="fuel-setup-desc">安装 TokenSyber VS Code 扩展，让 AI 工具的 token 消耗自动成为燃料</div>
+        <a id="btn-download-extension" class="btn btn-download" href="extension/tokensyber-0.1.0.vsix" download>
+          <span class="download-icon">&#11015;</span> 下载 VS Code 扩展 (.vsix)
+        </a>
+        <button id="btn-reconnect-fuel" class="btn btn-reconnect hidden">重新连接</button>
         <div class="fuel-setup-steps">
-          <div class="fuel-setup-step">1. 在 VS Code / Trae / Cursor 扩展市场搜索 <strong>TokenSyber</strong></div>
-          <div class="fuel-setup-step">2. 点击安装</div>
-          <div class="fuel-setup-step">3. 等待扩展自动激活，连接成功后此提示消失</div>
+          <div class="fuel-setup-step">1. 点击上方按钮下载 .vsix 文件</div>
+          <div class="fuel-setup-step">2. VS Code / Trae / Cursor 中按 <strong>Ctrl+Shift+P</strong> → 输入 <strong>Install from VSIX</strong> → 选择下载的文件</div>
+          <div class="fuel-setup-step">3. 重启编辑器，等待扩展自动激活，连接成功后此提示消失</div>
         </div>
       </div>
 

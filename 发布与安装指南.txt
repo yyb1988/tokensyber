@@ -1,0 +1,98 @@
+========================================
+  TokenSyber 扩展 - 发布与安装指南
+========================================
+
+一、发布者操作（你）
+------------------
+
+1. 初始化 Git 仓库并提交代码（已完成）
+
+2. 在 GitHub 创建仓库
+   - 打开 https://github.com/new
+   - Repository name: tokensyber
+   - 选 Public
+   - 不要勾选任何初始化选项
+   - 点 Create repository
+
+3. 推送代码到 GitHub
+   cd D:/tokensyber
+   git remote add origin https://github.com/yangyb/tokensyber.git
+   git branch -M main
+   git push -u origin main
+
+4. 创建 Release 并上传 .vsix
+   - 打开 https://github.com/yangyb/tokensyber/releases/new
+   - Tag: v0.1.0
+   - Title: TokenSyber v0.1.0
+   - 描述: TokenSyber - AI 算力燃料泵，透明追踪 AI 工具 token 消耗
+   - 把文件 D:\tokensyber\extension\tokensyber-0.1.0.vsix 拖拽到上传区域
+   - 点 Publish release
+
+5. 重新打包（如果修改了代码）
+   cd D:/tokensyber/extension
+   npm run build
+   vsce package
+   会生成新的 tokensyber-x.x.x.vsix
+
+
+二、玩家安装方式
+----------------
+
+方式 1：VS Code / Cursor 中安装（推荐）
+  1. 从 GitHub Release 下载 tokensyber-0.1.0.vsix
+  2. 打开 VS Code / Cursor
+  3. 按 Ctrl+Shift+P 打开命令面板
+  4. 输入 "Install from VSIX" 并选择
+  5. 选择下载的 .vsix 文件
+  6. 重启 VS Code / Cursor
+
+方式 2：命令行安装
+  # VS Code
+  code --install-extension tokensyber-0.1.0.vsix
+
+  # Cursor
+  cursor --install-extension tokensyber-0.1.0.vsix
+
+  # Trae
+  trae --install-extension tokensyber-0.1.0.vsix
+
+方式 3：拖放安装
+  1. 打开 VS Code
+  2. 打开扩展面板 (Ctrl+Shift+X)
+  3. 把 .vsix 文件直接拖放到扩展列表区域
+
+
+三、安装后使用
+--------------
+
+1. 安装后扩展自动激活（无需配置）
+2. 状态栏右侧会出现火焰图标 "$(flame) TokenSyber"
+3. 扩展会自动在 localhost:3001 启动 WebSocket 服务
+4. 打开游戏页面 http://localhost:8080
+5. 游戏页面自动连接 WebSocket，开始接收 token 数据
+6. 使用任何 AI 工具（Cline/Cursor/Copilot 等），token 消耗会自动推送到游戏
+
+调试模式: http://localhost:8080/?debug （5K tokens 即完成模型）
+
+
+四、常见问题
+------------
+
+Q: 状态栏显示 "$(flame) TokenSyber (!)" 怎么办？
+A: 端口 3001 被占用。修改 VS Code 设置:
+   Settings → 搜索 "tokensyber.port" → 改为其他端口
+   对应的游戏页面也需要修改连接端口
+
+Q: 游戏页面收不到 token 数据？
+A: 检查:
+   1. 扩展是否激活（状态栏有火焰图标）
+   2. 游戏页面控制台是否显示连接成功
+   3. 端口 3001 是否被防火墙拦截
+
+Q: 如何卸载？
+A: 扩展面板 → 找到 TokenSyber → 点卸载 → 重启 VS Code
+
+Q: 支持哪些 AI 工具？
+A: 所有通过 HTTP 请求调用 AI API 的工具都支持:
+   - Cline, Continue, Cursor, GitHub Copilot
+   - 任何使用 OpenAI/Anthropic/DeepSeek/Qwen API 的扩展

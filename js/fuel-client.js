@@ -8,6 +8,7 @@ let reconnectTimer = null;
 let tokenHistory = [];
 let lastFuelPulseTime = 0;
 let hasEverConnected = false;
+let manuallyDisconnected = false;
 
 export function init() {
   connect();
@@ -48,12 +49,20 @@ function connect() {
   };
 
   ws.onclose = () => {
-    updateStatus(hasEverConnected ? 'reconnecting' : 'disconnected');
-    scheduleReconnect();
+    if (manuallyDisconnected) {
+      updateStatus('disconnected');
+    } else {
+      updateStatus(hasEverConnected ? 'reconnecting' : 'disconnected');
+      scheduleReconnect();
+    }
   };
 
   ws.onerror = () => {
-    updateStatus(hasEverConnected ? 'reconnecting' : 'disconnected');
+    if (manuallyDisconnected) {
+      updateStatus('disconnected');
+    } else {
+      updateStatus(hasEverConnected ? 'reconnecting' : 'disconnected');
+    }
   };
 }
 
@@ -97,21 +106,37 @@ function triggerFuelPulse(tokens) {
 function updateStatus(status) {
   const indicator = document.getElementById('fuel-connection');
   const setupPanel = document.getElementById('fuel-setup');
+  const toggleBtn = document.getElementById('btn-fuel-toggle');
+  const reconnectBtn = document.getElementById('btn-reconnect-fuel');
+  const downloadBtn = document.getElementById('btn-download-extension');
+  const stepsEl = setupPanel?.querySelector('.fuel-setup-steps');
   if (!indicator) return;
   if (status === 'connected') {
     indicator.className = 'fuel-indicator connected';
     indicator.textContent = '●';
     indicator.title = '燃料泵已连接';
     if (setupPanel) setupPanel.classList.add('hidden');
+    if (toggleBtn) { toggleBtn.classList.remove('hidden'); toggleBtn.title = '断开燃料泵'; toggleBtn.innerHTML = '&#10005;'; }
   } else if (status === 'reconnecting') {
     indicator.className = 'fuel-indicator reconnecting';
     indicator.textContent = '●';
     indicator.title = '燃料泵连接中断 — 正在重连...';
+    if (toggleBtn) toggleBtn.classList.add('hidden');
   } else {
     indicator.className = 'fuel-indicator disconnected';
     indicator.textContent = '●';
     indicator.title = '燃料泵未连接';
     if (setupPanel) setupPanel.classList.remove('hidden');
+    if (toggleBtn) toggleBtn.classList.add('hidden');
+    if (manuallyDisconnected) {
+      if (reconnectBtn) reconnectBtn.classList.remove('hidden');
+      if (downloadBtn) downloadBtn.classList.add('hidden');
+      if (stepsEl) stepsEl.classList.add('hidden');
+    } else {
+      if (reconnectBtn) reconnectBtn.classList.add('hidden');
+      if (downloadBtn) downloadBtn.classList.remove('hidden');
+      if (stepsEl) stepsEl.classList.remove('hidden');
+    }
   }
 }
 
@@ -147,4 +172,24 @@ function formatTokenCount(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
   if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
   return n.toString();
+}
+
+// 主动断开燃料泵连接
+export function disconnect() {
+  manuallyDisconnected = true;
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  if (ws) {
+    ws.close();
+    ws = null;
+  }
+  updateStatus('disconnected');
+}
+
+// 重新连接燃料泵
+export function reconnect() {
+  manuallyDisconnected = false;
+  connect();
 }
