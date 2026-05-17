@@ -1,0 +1,20 @@
+[
+  {
+    "id": "default_cube",
+    "name": "赛博方块人",
+    "rarity": "common",
+    "description": "初始型号的数字居民"
+  },
+  {
+    "id": "robot_01",
+    "name": "工业机器人",
+    "rarity": "common",
+    "description": "基础型号的工业机器人"
+  },
+  {
+    "id": "crystal_01",
+    "name": "水晶生命体",
+    "rarity": "rare",
+    "description": "来自数字深渊的结晶体"
+  }
+]

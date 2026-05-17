@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>时间赛博</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- 顶部导航栏 -->
+  <header id="header">
+    <div class="header-left">
+      <h1 class="logo">时间赛博</h1>
+      <span class="tagline">算力驱动</span>
+    </div>
+    <div class="header-right">
+      <div class="coin-display">
+        <span class="coin-icon">&#9733;</span>
+        <span id="coin-count">0</span>
+      </div>
+      <button id="btn-cabinet" class="btn btn-outline">展示柜 (C)</button>
+    </div>
+  </header>
+
+  <!-- 主内容区 -->
+  <main id="main-content">
+    <!-- 3D视口 -->
+    <div id="viewport-container">
+      <canvas id="three-canvas"></canvas>
+      <!-- 加载提示 -->
+      <div id="loading-overlay">
+        <div class="loading-text">初始化3D打印系统...</div>
+      </div>
+    </div>
+
+    <!-- 进度与控制面板 -->
+    <div id="control-panel">
+      <div class="progress-section">
+        <div class="progress-bar-track">
+          <div id="progress-bar-fill" class="progress-bar-fill"></div>
+        </div>
+        <div class="progress-info">
+          <span id="progress-percent">0.0%</span>
+          <span id="remaining-time">算力: 0 / 500K</span>
+        </div>
+      </div>
+
+      <!-- 燃料泵状态 -->
+      <div id="fuel-status" class="fuel-status">
+        <span id="fuel-connection" class="fuel-indicator disconnected" title="燃料泵未连接">●</span>
+        <span id="fuel-rate" class="fuel-rate-text">0/min</span>
+      </div>
+
+      <!-- 燃料泵连接提示（未连接时显示） -->
+      <div id="fuel-setup" class="fuel-setup">
+        <div class="fuel-setup-title">算力未连接</div>
+        <div class="fuel-setup-desc">安装 TokenSyber VS Code 扩展，让 AI 工具的 token 消耗自动成为燃料</div>
+        <div class="fuel-setup-steps">
+          <div class="fuel-setup-step">1. 在 VS Code / Trae / Cursor 扩展市场搜索 <strong>TokenSyber</strong></div>
+          <div class="fuel-setup-step">2. 点击安装</div>
+          <div class="fuel-setup-step">3. 等待扩展自动激活，连接成功后此提示消失</div>
+        </div>
+      </div>
+
+      <div class="model-info" id="model-info">
+        <span class="model-name" id="current-model-name">等待开始...</span>
+        <span class="model-rarity" id="current-model-rarity"></span>
+      </div>
+
+      <div class="button-group">
+        <button id="btn-regenerate" class="btn btn-primary">重新生成 (R)</button>
+        <button id="btn-lock" class="btn btn-secondary">锁定 (L)</button>
+      </div>
+
+      <!-- 完成后的唯一代码显示 -->
+      <div id="completion-section" class="hidden">
+        <div class="completion-label">生成完毕 · 数字资产</div>
+        <div class="unique-code-row">
+          <code id="unique-code" class="unique-code">TC-00000000-00000000-0000</code>
+          <button id="btn-copy-code" class="btn btn-small">复制</button>
+        </div>
+        <div class="shortcut-hint">WASD 旋转 · QE 缩放 · Space 收集金币 · F 重置视角</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 展示柜视图（默认隐藏） -->
+  <div id="cabinet-view" class="hidden">
+    <div class="cabinet-header">
+      <h2>展示柜</h2>
+      <button id="btn-cabinet-close" class="btn btn-outline">返回</button>
+    </div>
+    <div id="cabinet-grid" class="cabinet-grid">
+      <div class="cabinet-empty">还没有完成的模型</div>
+    </div>
+  </div>
+
+  <!-- 展示柜详情视图（默认隐藏） -->
+  <div id="cabinet-detail" class="hidden">
+    <div class="detail-header">
+      <button id="btn-detail-back" class="btn btn-outline">返回展示柜</button>
+    </div>
+    <div id="detail-canvas-container"></div>
+    <div class="detail-info">
+      <h3 id="detail-name"></h3>
+      <span id="detail-rarity" class="model-rarity"></span>
+      <div class="detail-code">
+        <code id="detail-code"></code>
+        <button id="btn-detail-copy" class="btn btn-small">复制</button>
+      </div>
+      <div id="detail-date"></div>
+      <div id="detail-duration"></div>
+    </div>
+  </div>
+
+  <!-- 锁定模态框 -->
+  <div id="lock-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <h3 id="lock-modal-title">锁定模型</h3>
+      <p id="lock-modal-desc">设置密码后，重新生成需要输入密码确认</p>
+      <div class="form-group">
+        <label for="lock-password">密码</label>
+        <input type="password" id="lock-password" placeholder="至少4位" autocomplete="new-password">
+      </div>
+      <div class="form-group" id="confirm-group">
+        <label for="lock-confirm">确认密码</label>
+        <input type="password" id="lock-confirm" placeholder="再次输入" autocomplete="new-password">
+      </div>
+      <div id="lock-error" class="error-text hidden"></div>
+      <div class="modal-buttons">
+        <button id="btn-lock-cancel" class="btn btn-outline">取消 (Esc)</button>
+        <button id="btn-lock-confirm" class="btn btn-primary">确认 (Enter)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 确认模态框 -->
+  <div id="confirm-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <h3 id="confirm-modal-title">确认操作</h3>
+      <p id="confirm-modal-desc"></p>
+      <div class="modal-buttons">
+        <button id="btn-confirm-cancel" class="btn btn-outline">取消 (Esc)</button>
+        <button id="btn-confirm-ok" class="btn btn-primary">确认 (Enter)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 提示消息 -->
+  <div id="toast-container"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

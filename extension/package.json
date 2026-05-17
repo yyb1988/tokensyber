@@ -1,0 +1,51 @@
+{
+  "name": "tokensyber",
+  "displayName": "TokenSyber — 算力燃料泵",
+  "description": "透明追踪 AI 工具的 token 消耗，驱动你的 3D 打印游戏。安装即用，零配置。",
+  "version": "0.1.0",
+  "publisher": "tokensyber",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "token",
+    "AI",
+    "game",
+    "fuel",
+    "3d-print"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "TokenSyber",
+      "properties": {
+        "tokensyber.port": {
+          "type": "number",
+          "default": 3001,
+          "description": "WebSocket 服务端口（游戏页面连接此端口接收 token 数据）"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+    "watch": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --watch",
+    "package": "npm run build -- --minify"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@types/ws": "^8.5.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}
