@@ -101,29 +101,10 @@ export class PlayerDO implements DurableObject {
       }
     }
 
-    // Accept and process
+    // Accept and process — always accumulate (game polls /fuel-stats)
     this.injectTimestamps.push(now);
-
-    // Only accumulate when game client is connected
-    if (this.clients.size > 0) {
-      this.totalTokens += tokens;
-      this.totalRequests++;
-    }
-
-    // Broadcast to connected game pages
-    const message = JSON.stringify({
-      type: 'token-consumed',
-      tokens,
-      totalTokens: this.totalTokens,
-      timestamp: Date.now(),
-    });
-    for (const ws of this.clients) {
-      try {
-        ws.send(message);
-      } catch {
-        this.clients.delete(ws);
-      }
-    }
+    this.totalTokens += tokens;
+    this.totalRequests++;
 
     // Persist counters every 10 requests (reduce storage writes)
     if (this.totalRequests % 10 === 0) {

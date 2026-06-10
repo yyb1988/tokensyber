@@ -2,26 +2,22 @@ import { addTokens } from './game-state.js';
 import { playConnected, playDisconnected } from './sound-system.js';
 
 const API_BASE = '';
-const WS_BASE = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}`;
 const PLAYER_KEY = 'tokensyber_player_id';
-const RECONNECT_DELAY = 5000;
-const PING_INTERVAL = 30000;
-const PONG_TIMEOUT = 60000;
+const POLL_INTERVAL = 2000;
 
-let ws = null;
+let pollTimer = null;
+let lastKnownTotalTokens = 0;
+let totalTokensReceived = 0;
 let tokenHistory = [];
 let lastFuelPulseTime = 0;
 let hasEverConnected = false;
 let manuallyDisconnected = false;
-let pingInterval = null;
-let lastMessageTime = 0;
 
 export function init() {
   const playerId = getPlayerId();
   if (playerId) {
     connect(playerId);
   } else {
-    // 显示 Player ID 输入界面
     showPlayerIdInput();
   }
   setInterval(updateRateDisplay, 1000);
@@ -56,7 +52,7 @@ function showPlayerIdInput() {
   const input = document.getElementById('player-id-input');
   const btn = document.getElementById('btn-connect-player');
   const section = document.getElementById('player-id-section');
-  // 确保 \"连接 Claude Code\" 标签页是激活的
+  // 确保 "连接 Claude Code" 标签页是激活的
   const guideConnect = document.getElementById('guide-connect');
   const guideHowto = document.getElementById('guide-howto');
   if (guideConnect) guideConnect.classList.remove('hidden');
@@ -81,127 +77,103 @@ function showPlayerIdInput() {
   updateStatus('disconnected');
 }
 
-// ========== WebSocket Connection ==========
+// ========== Polling Connection ==========
 
 function connect(playerId) {
-  if (ws && ws.readyState === WebSocket.OPEN) return;
+  if (manuallyDisconnected) return;
+  stopPolling();
+  lastKnownTotalTokens = 0; // reset on fresh connect
 
-  const url = `${WS_BASE}/ws?player=${encodeURIComponent(playerId)}`;
-  console.log('[TokenSyber] Connecting to', url);
-
-  try {
-    ws = new WebSocket(url);
-  } catch (e) {
-    console.warn('[TokenSyber] WebSocket creation failed:', e);
-    scheduleReconnect();
-    return;
-  }
-
-  ws.onopen = () => {
-    console.log('[TokenSyber] WebSocket connected');
-    lastMessageTime = Date.now();
+  // Immediate first fetch to get baseline
+  fetchStats(playerId).then(total => {
+    lastKnownTotalTokens = total;
     updateStatus('connected');
     if (!hasEverConnected) {
       hasEverConnected = true;
       showConnectedToast();
     }
-    // 注册 HMAC key（让 DO 后续验证 stop hook 的签名）
-    const hmacKey = getHmacKey();
-    if (hmacKey && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'register-key', key: hmacKey }));
-    }
-    startPing();
-    // 隐藏 Player ID 输入区，显示已连接状态
     const section = document.getElementById('player-id-section');
     if (section) section.classList.add('hidden');
-  };
+  }).catch(() => {
+    updateStatus('disconnected');
+  });
 
-  ws.onmessage = (event) => {
-    lastMessageTime = Date.now();
+  // Start polling
+  startPolling(playerId);
+}
+
+async function startPolling(playerId) {
+  stopPolling();
+  pollTimer = setInterval(async () => {
     try {
-      const data = JSON.parse(event.data);
-      if (data.type === 'token-consumed') {
-        onTokenConsumed(data.tokens);
-      } else if (data.type === 'pong') {
-        // heartbeat response
-      } else if (data.type === 'connected') {
-        updateStatus('connected');
-        if (!hasEverConnected) {
-          hasEverConnected = true;
-          showConnectedToast();
-        }
+      const total = await fetchStats(playerId);
+      if (total > lastKnownTotalTokens) {
+        const delta = total - lastKnownTotalTokens;
+        lastKnownTotalTokens = total;
+        onTokenConsumed(delta);
       }
-    } catch (e) { /* skip invalid messages */ }
-  };
-
-  ws.onclose = (event) => {
-    console.log(`[TokenSyber] WebSocket closed: code=${event.code}`);
-    stopPing();
-    if (manuallyDisconnected) {
-      updateStatus('disconnected');
-    } else {
-      updateStatus(hasEverConnected ? 'reconnecting' : 'disconnected');
-      scheduleReconnect();
+      updateStatus('connected');
+    } catch {
+      if (!manuallyDisconnected) {
+        updateStatus(hasEverConnected ? 'reconnecting' : 'disconnected');
+      }
     }
-  };
-
-  ws.onerror = () => {
-    stopPing();
-    if (manuallyDisconnected) {
-      updateStatus('disconnected');
-    } else {
-      updateStatus(hasEverConnected ? 'reconnecting' : 'disconnected');
-    }
-  };
+  }, POLL_INTERVAL);
 }
 
-// ========== HMAC Key ==========
-
-// 从 Player ID 输入区域的隐藏字段读取 hmacKey（可选）
-function getHmacKey() {
-  const el = document.getElementById('hmac-key-input');
-  return el ? el.value.trim() : '';
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
 }
 
-// ========== Heartbeat ==========
-
-function startPing() {
-  stopPing();
-  pingInterval = setInterval(() => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'ping' }));
-    }
-    if (Date.now() - lastMessageTime > PONG_TIMEOUT) {
-      console.warn('[TokenSyber] No message for', PONG_TIMEOUT / 1000, 'seconds, reconnecting');
-      stopPing();
-      if (ws) { ws.close(); ws = null; }
-      scheduleReconnect();
-    }
-  }, PING_INTERVAL);
+async function fetchStats(playerId) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch(`${API_BASE}/fuel-stats?player=${encodeURIComponent(playerId)}`, {
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.totalTokens || 0;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
-function stopPing() {
-  if (pingInterval) { clearInterval(pingInterval); pingInterval = null; }
+// ========== Token Processing ==========
+
+function onTokenConsumed(tokens) {
+  const now = Date.now();
+  tokenHistory.push({ tokens, time: now });
+  if (tokenHistory.length > 60) tokenHistory.shift();
+
+  addTokens(tokens);
+  totalTokensReceived += tokens;
+
+  if (now - lastFuelPulseTime > 2000) {
+    lastFuelPulseTime = now;
+    triggerFuelPulse(tokens);
+  }
 }
 
-function scheduleReconnect() {
-  setTimeout(() => {
-    const playerId = getPlayerId();
-    if (playerId && !manuallyDisconnected) {
-      connect(playerId);
-    }
-  }, RECONNECT_DELAY);
-}
+// ========== Rate Display ==========
 
-// ========== Token Handling ==========
-
-function onTokenConsumed(count) {
-  addTokens(count);
-  tokenHistory.push({ timestamp: Date.now(), count });
-  const cutoff = Date.now() - 3600000;
-  tokenHistory = tokenHistory.filter(h => h.timestamp > cutoff);
-  lastFuelPulseTime = Date.now();
-  triggerFuelPulse(count);
+function updateRateDisplay() {
+  const rateEl = document.getElementById('fuel-rate');
+  if (!rateEl) return;
+  const now = Date.now();
+  tokenHistory = tokenHistory.filter(t => now - t.time < 60_000);
+  const recentTokens = tokenHistory.reduce((s, t) => s + t.tokens, 0);
+  const rate = tokenHistory.length > 0 ? Math.round(recentTokens / 60) : 0;
+  rateEl.textContent = `${formatTokenCount(rate)}/min`;
+  if (rate > 0) {
+    rateEl.classList.remove('hidden');
+  } else {
+    rateEl.classList.add('hidden');
+  }
 }
 
 function triggerFuelPulse(tokens) {
@@ -235,7 +207,7 @@ function updateStatus(status) {
     playConnected();
     indicator.className = 'fuel-indicator connected';
     indicator.textContent = '●';
-    indicator.title = '燃料泵已连接';
+    indicator.title = '燃料泵已连接（轮询模式）';
     if (setupPanel) setupPanel.classList.add('hidden');
     if (toggleBtn) { toggleBtn.classList.remove('hidden'); toggleBtn.title = '断开燃料泵'; toggleBtn.innerHTML = '&#10005;'; }
     if (diagnosticsBtn) diagnosticsBtn.classList.add('hidden');
@@ -261,7 +233,7 @@ function updateStatus(status) {
     } else {
       if (reconnectBtn) reconnectBtn.classList.add('hidden');
     }
-    // 显示 Player ID 输入区（让用户能看到输入框并更换 ID）
+    // 显示 Player ID 输入区
     const playerSection = document.getElementById('player-id-section');
     const guideConnect = document.getElementById('guide-connect');
     const guideHowto = document.getElementById('guide-howto');
@@ -286,72 +258,17 @@ function showConnectedToast() {
   setTimeout(() => toast.remove(), 3500);
 }
 
-function updateRateDisplay() {
-  const rateEl = document.getElementById('fuel-rate');
-  if (!rateEl) return;
-  const rate = getTokensPerMinute();
-  if (rate > 0) {
-    rateEl.textContent = `${formatTokenCount(rate)}/min`;
-    rateEl.classList.remove('hidden');
-  } else {
-    rateEl.classList.add('hidden');
-  }
-}
-
-export function getTokensPerMinute() {
-  const now = Date.now();
-  const recent = tokenHistory.filter(h => h.timestamp > now - 60000);
-  return recent.reduce((sum, h) => sum + h.count, 0);
-}
-
-export function isFuelActive() {
-  return Date.now() - lastFuelPulseTime < 3000;
-}
-
-export async function runDiagnostics() {
-  const resultEl = document.getElementById('fuel-diagnostics-result');
-  if (!resultEl) return;
-  resultEl.classList.remove('hidden');
-
-  const playerId = getPlayerId();
-  if (!playerId) {
-    resultEl.innerHTML = '<strong style="color:#f06060">✗ 未配置 Player ID</strong><br>请在上方输入你的 Player ID';
-    return;
-  }
-
-  resultEl.textContent = '正在诊断...';
-
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch(`${API_BASE}/fuel-stats?player=${encodeURIComponent(playerId)}`, { signal: controller.signal });
-    clearTimeout(timer);
-
-    if (res.ok) {
-      const data = await res.json();
-      if (data.connected) {
-        resultEl.innerHTML = '<strong style="color:#40f080">✓ 已连接到 TokenSyber 服务器</strong><br>游戏客户端在线，算力正在注入';
-      } else {
-        resultEl.innerHTML = '<strong style="color:#f0c040">⚠ 服务器可达，但游戏客户端未连接</strong><br>服务器正常，但未检测到游戏页面连接。请刷新页面重试。';
-      }
-    } else {
-      resultEl.innerHTML = '<strong style="color:#f06060">✗ 服务器响应异常</strong><br>HTTP ' + res.status;
-    }
-  } catch (err) {
-    resultEl.innerHTML = '<strong style="color:#f06060">✗ 无法连接 TokenSyber 服务器</strong><br>请检查网络连接。错误: ' + (err.name || err.message);
-  }
-}
-
 function formatTokenCount(n) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
   if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
   return n.toString();
 }
 
+// ========== Public API ==========
+
 export function disconnect() {
   manuallyDisconnected = true;
-  stopPing();
-  if (ws) { ws.close(); ws = null; }
+  stopPolling();
   updateStatus('disconnected');
 }
 
@@ -365,7 +282,39 @@ export function changePlayerId() {
   disconnect();
   localStorage.removeItem(PLAYER_KEY);
   showPlayerIdInput();
-  // 焦点到输入框
   const input = document.getElementById('player-id-input');
   if (input) setTimeout(() => input.focus(), 100);
+}
+
+// ========== Diagnostics ==========
+
+export async function runDiagnostics() {
+  const resultEl = document.getElementById('fuel-diagnostics-result');
+  if (!resultEl) return;
+  resultEl.classList.remove('hidden');
+  resultEl.innerHTML = '<em>检测中…</em>';
+
+  const playerId = getPlayerId();
+  if (!playerId) {
+    resultEl.innerHTML = '<strong style="color:#f06060">✗ 未配置 Player ID</strong><br>请在上方输入你的 Player ID';
+    return;
+  }
+
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), 5000);
+
+  try {
+    const res = await fetch(`${API_BASE}/fuel-stats?player=${encodeURIComponent(playerId)}`, { signal: controller.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    resultEl.innerHTML = [
+      '<strong style="color:var(--glitch-cyan)">✓ 诊断结果</strong>',
+      `累计算力: ${data.totalTokens?.toLocaleString('en-US') || '0'}`,
+      `注入次数: ${data.totalRequests || 0}`,
+      `连接状态: ${data.connected ? '已连接' : '未连接'}`,
+      `客户端数: ${data.clients || 0}`,
+    ].join('<br>');
+  } catch (e) {
+    resultEl.innerHTML = `<strong style="color:#f06060">✗ 连接失败</strong><br>${e.message || '无法访问 API'}`;
+  }
 }
