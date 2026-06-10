@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { getStock } from './stock.js';
 import { isModelBanned } from './ban-system.js';
 
@@ -8,9 +9,19 @@ const CDN_BASE = (window.location.hostname === 'localhost' || window.location.ho
   ? ''
   : 'https://pub-32c2ddcfcf824086b7a3ff0cd0c0aa78.r2.dev';
 
+// DRACO decoder 路径（与模型文件同源，走 R2 CDN 或本地）
+const DRACO_DECODER_PATH = CDN_BASE
+  ? `${CDN_BASE}/vendor/three/draco/`
+  : 'vendor/three/draco/';
+
 let manifest = [];
 const modelCache = new Map();
+
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath(DRACO_DECODER_PATH);
+
 const loader = new GLTFLoader();
+loader.setDRACOLoader(dracoLoader);
 
 // 为资源路径加 CDN 前缀（导出供 ui.js 等模块使用）
 export function assetUrl(path) {

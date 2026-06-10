@@ -125,11 +125,13 @@ export class PlayerDO implements DurableObject {
   }
 
   private handleStats(): Response {
+    const activeMs = Date.now() - this.lastActivity;
+    const connected = this.clients.size > 0 || activeMs < 10_000;
     return new Response(JSON.stringify({
       totalTokens: this.totalTokens,
       totalRequests: this.totalRequests,
       clients: this.clients.size,
-      connected: this.clients.size > 0,
+      connected,
     }), {
       headers: { 'Content-Type': 'application/json' },
     });

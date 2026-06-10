@@ -19,7 +19,7 @@ import {
 } from './coin-system.js';
 import { init as cabinetInit, renderCabinet, captureThumbnail, setSceneCaptureFns, getDetailControls, getDetailCamera, rotateDetailModelLeft, rotateDetailModelRight } from './cabinet.js';
 import { getScene, getCamera, getRenderer, resetCamera, rotateModelLeft, rotateModelRight, rotateUp, rotateDown, zoomIn, zoomOut } from './scene.js';
-import { disconnect as fuelDisconnect, reconnect as fuelReconnect, runDiagnostics as fuelDiagnostics } from './fuel-client.js';
+import { disconnect as fuelDisconnect } from './fuel-client.js';
 import { consumeStock, getStock, getCap, isAllSoldOut } from './stock.js';
 import * as sound from './sound-system.js';
 import * as banSystem from './ban-system.js';
@@ -49,8 +49,6 @@ export function init() {
   document.getElementById('btn-lock').addEventListener('click', onLock);
   document.getElementById('btn-copy-code').addEventListener('click', onCopyCode);
   document.getElementById('btn-fuel-toggle').addEventListener('click', onFuelToggle);
-  document.getElementById('btn-reconnect-fuel').addEventListener('click', onFuelReconnect);
-  document.getElementById('btn-fuel-diagnostics')?.addEventListener('click', onFuelDiagnostics);
 
   // 抽屉切换
   document.querySelectorAll('.drawer-head').forEach(head => {
@@ -619,14 +617,6 @@ function onCopyCode() {
 
 function onFuelToggle() {
   fuelDisconnect();
-}
-
-function onFuelReconnect() {
-  fuelReconnect();
-}
-
-function onFuelDiagnostics() {
-  fuelDiagnostics();
 }
 
 function switchGuideTab(tabName) {

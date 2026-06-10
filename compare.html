@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>模型压缩对比 - deepray</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #111; color: #fff; font-family: monospace; overflow: hidden; }
+  .container { display: flex; height: 100vh; }
+  .panel { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+  .panel:first-child { border-right: 1px solid #333; }
+  .label {
+    position: absolute; top: 20px; padding: 8px 16px; border-radius: 4px;
+    font-size: 14px; font-weight: bold; z-index: 10;
+  }
+  .label.original { background: rgba(200,50,50,0.8); }
+  .label.optimized { background: rgba(50,200,50,0.8); }
+  .size { position: absolute; top: 60px; font-size: 12px; color: #aaa; z-index: 10; }
+  .info { position: absolute; bottom: 30px; font-size: 13px; color: #888; z-index: 10; text-align: center; line-height: 1.6; }
+  .info strong { color: #ccc; }
+  canvas { width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="panel">
+    <div class="label original">原始版本</div>
+    <div class="size original-size">加载中...</div>
+    <div class="info">
+      <strong>原始 GLB</strong><br>
+      DRACO: 无 | 贴图: PNG 4K | <span id="orig-size">28.2 MB</span>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="label optimized">优化版本</div>
+    <div class="size optimized-size">加载中...</div>
+    <div class="info">
+      <strong>优化 GLB</strong><br>
+      DRACO ✓ | WebP + 2K | <span id="opt-size">1.23 MB</span>
+    </div>
+  </div>
+</div>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/libs/draco/');
+
+function setupViewer(container) {
+  const panel = container.closest('.panel');
+  const w = panel.clientWidth;
+  const h = panel.clientHeight;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x1a1a2e);
+
+  const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 100);
+  camera.position.set(2.5, 1.5, 2.5);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(w, h);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  container.appendChild(renderer.domElement);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 1.5;
+  controls.target.set(0, 0.5, 0);
+
+  // Lighting
+  scene.add(new THREE.AmbientLight(0x404060, 1.5));
+  const key = new THREE.DirectionalLight(0xffffff, 3);
+  key.position.set(5, 8, 5);
+  scene.add(key);
+  const rim = new THREE.DirectionalLight(0x00ffff, 2);
+  rim.position.set(-3, 1, -2);
+  scene.add(rim);
+  const fill = new THREE.DirectionalLight(0xff00ff, 1.5);
+  fill.position.set(0, -0.5, 3);
+  scene.add(fill);
+
+  return { scene, camera, renderer, controls, panel };
+}
+
+// Set up both panels
+const leftPanel = document.querySelector('.panel:nth-child(1)');
+const rightPanel = document.querySelector('.panel:nth-child(2)');
+
+const leftDiv = document.createElement('div');
+leftDiv.style.cssText = 'width:100%;height:100%;';
+leftPanel.appendChild(leftDiv);
+
+const rightDiv = document.createElement('div');
+rightDiv.style.cssText = 'width:100%;height:100%;';
+rightPanel.appendChild(rightDiv);
+
+const left = setupViewer(leftDiv);
+const right = setupViewer(rightDiv);
+
+// Load models
+const origLoader = new GLTFLoader();
+const optLoader = new GLTFLoader();
+optLoader.setDRACOLoader(dracoLoader);
+
+const origSizeEl = document.querySelector('.original-size');
+const optSizeEl = document.querySelector('.optimized-size');
+
+origLoader.load('models/characters/aq/deepray/deepray.glb', (gltf) => {
+  left.scene.add(gltf.scene);
+  // Center & scale
+  const box = new THREE.Box3().setFromObject(gltf.scene);
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  gltf.scene.scale.multiplyScalar(2.5 / maxDim);
+  const center = box.getCenter(new THREE.Vector3());
+  gltf.scene.position.sub(center);
+  gltf.scene.position.y += (box.max.y - box.min.y) / 2;
+  origSizeEl.textContent = '已加载 - 28.2 MB';
+  origSizeEl.style.color = '#ff6666';
+}, (p) => {
+  if (p.total > 0) origSizeEl.textContent = `加载中 ${Math.round(p.loaded/p.total*100)}% (28.2 MB)`;
+  else origSizeEl.textContent = `加载中 ${(p.loaded/1024/1024).toFixed(1)} MB / 28.2 MB`;
+});
+
+optLoader.load('models/characters/aq/deepray/deepray-opt.glb', (gltf) => {
+  right.scene.add(gltf.scene);
+  const box = new THREE.Box3().setFromObject(gltf.scene);
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  gltf.scene.scale.multiplyScalar(2.5 / maxDim);
+  const center = box.getCenter(new THREE.Vector3());
+  gltf.scene.position.sub(center);
+  gltf.scene.position.y += (box.max.y - box.min.y) / 2;
+  optSizeEl.textContent = '已加载 - 1.23 MB';
+  optSizeEl.style.color = '#66ff66';
+}, (p) => {
+  if (p.total > 0) optSizeEl.textContent = `加载中 ${Math.round(p.loaded/p.total*100)}% (1.23 MB)`;
+  else optSizeEl.textContent = `加载中 ${(p.loaded/1024/1024).toFixed(1)} MB / 1.23 MB`;
+});
+
+// Sync cameras and rotation
+let syncing = false;
+left.controls.addEventListener('start', () => { syncing = true; });
+left.controls.addEventListener('end', () => { syncing = false; });
+right.controls.addEventListener('start', () => { syncing = true; });
+right.controls.addEventListener('end', () => { syncing = false; });
+
+function animate() {
+  requestAnimationFrame(animate);
+  left.controls.update();
+  right.controls.update();
+  if (syncing) {
+    const src = left.controls;
+    const dst = right.controls;
+    // Determine which is being used
+  }
+  left.renderer.render(left.scene, left.camera);
+  right.renderer.render(right.scene, right.camera);
+}
+
+// Sync: when one camera moves, other follows
+left.controls.addEventListener('change', () => {
+  if (syncing) {
+    right.camera.position.copy(left.camera.position);
+    right.camera.quaternion.copy(left.camera.quaternion);
+    right.controls.target.copy(left.controls.target);
+  }
+});
+right.controls.addEventListener('change', () => {
+  if (syncing) {
+    left.camera.position.copy(right.camera.position);
+    left.camera.quaternion.copy(right.camera.quaternion);
+    left.controls.target.copy(right.controls.target);
+  }
+});
+
+animate();
+
+window.addEventListener('resize', () => {
+  [left, right].forEach(({camera, renderer, panel}) => {
+    const w = panel.clientWidth;
+    const h = panel.clientHeight;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  });
+});
+</script>
+</body>
+</html>
