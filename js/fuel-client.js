@@ -262,7 +262,12 @@ function updateStatus(status) {
       if (reconnectBtn) reconnectBtn.classList.add('hidden');
     }
     // 显示 Player ID 输入区（让用户能看到输入框并更换 ID）
-    showPlayerIdInput();
+    const playerSection = document.getElementById('player-id-section');
+    const guideConnect = document.getElementById('guide-connect');
+    const guideHowto = document.getElementById('guide-howto');
+    if (guideConnect) guideConnect.classList.remove('hidden');
+    if (guideHowto) guideHowto.classList.add('hidden');
+    if (playerSection) playerSection.classList.remove('hidden');
   }
   // 有存储的 playerId 时才显示更换按钮
   if (changePlayerBtn) {
