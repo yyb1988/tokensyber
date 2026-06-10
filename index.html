@@ -104,6 +104,11 @@
                 <button id="btn-copy-prompt" class="btn btn-prompt-copy">复制提示词</button>
               </div>
               <div class="guide-note">状态栏显示 🔥 TokenSyber 时，说明算力正在注入游戏</div>
+              <div class="guide-note" id="cert-trust-note" style="display:none">
+                <strong>🔒 首次使用需信任本地证书：</strong>点击
+                <a href="https://127.0.0.1:3011/fuel-port" target="_blank" rel="noopener" style="color:var(--cyan,#00f0ff)">此链接</a>，
+                浏览器会提示"不安全"→ 点击"高级"→"继续前往 127.0.0.1（不安全）"→ 完成后刷新本页面
+              </div>
             </div>
 
             <!-- 玩法说明 -->
@@ -338,6 +343,13 @@
     <a href="https://github.com/yyb1988/tokensyber-plugin" target="_blank" rel="noopener">GitHub</a>
   </footer>
 
+  <script>
+    // HTTPS 页面显示证书信任提示
+    if (location.protocol === 'https:') {
+      const note = document.getElementById('cert-trust-note');
+      if (note) note.style.display = '';
+    }
+  </script>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

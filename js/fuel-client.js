@@ -3,11 +3,14 @@ import { playConnected, playDisconnected } from './sound-system.js';
 
 const DEFAULT_PORT = 3001;
 const MAX_PORT = 3010;
+const HTTPS_PORT_OFFSET = 10;  // HTTPS on 3011-3020
 const RECONNECT_DELAY = 5000;
 const CONNECT_TIMEOUT = 2000;
 const HTTP_PROBE_TIMEOUT = 500;
 const PING_INTERVAL = 30000;
 const PONG_TIMEOUT = 60000;
+
+const isSecurePage = window.location.protocol === 'https:';
 
 let ws = null;
 let wsUrl = '';
@@ -32,6 +35,9 @@ export function init() {
   };
 }
 
+// ========== Port Discovery ==========
+
+// HTTP 探测：仅 HTTP 页面可用（HTTPS 页面 fetch http:// 会被混合内容阻断）
 async function httpProbe(port) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), HTTP_PROBE_TIMEOUT);
@@ -40,7 +46,7 @@ async function httpProbe(port) {
     clearTimeout(timer);
     if (res.ok) {
       const data = await res.json();
-      if (typeof data.port === 'number' && data.server === 'tokensyber') return data.port;
+      if (typeof data.port === 'number' && data.server === 'tokensyber') return data;
     }
     return null;
   } catch {
@@ -53,8 +59,8 @@ async function discoverPortViaHttp() {
   const probes = [];
   for (let p = DEFAULT_PORT; p <= MAX_PORT; p++) {
     probes.push(
-      httpProbe(p).then(port => {
-        if (port !== null) return port;
+      httpProbe(p).then(data => {
+        if (data !== null) return data;
         throw new Error('not found');
       })
     );
@@ -66,72 +72,73 @@ async function discoverPortViaHttp() {
   }
 }
 
+// ========== Main Discovery Flow ==========
+
 async function discoverAndConnect() {
   if (isDiscovering) return;
   isDiscovering = true;
 
-  // HTTPS 页面无法 fetch http://127.0.0.1（混合内容阻断），
-  // 但 Chrome 允许 ws://127.0.0.1 WebSocket 连接（开发工具特例）。
-  // 策略：HTTPS 页面跳过 HTTP 探测，直接走 WS 扫描。
-  const isSecurePage = window.location.protocol === 'https:';
-
-  // Try cached port via WS first (instant if server still there)
+  // Try cached port first
   if (discoveredPort) {
     tryWsConnect(discoveredPort,
-      () => { wsUrl = `ws://127.0.0.1:${discoveredPort}`; isDiscovering = false; },
+      () => { isDiscovering = false; },
       () => { discoveredPort = null; discoverAndConnect(); }
     );
     return;
   }
 
-  // HTTP port discovery (fast, parallel) — only on non-HTTPS pages
+  // HTTP 页面：用 HTTP 探测（快，并行）
   if (!isSecurePage) {
-    const port = await discoverPortViaHttp();
-    if (port !== null) {
-      console.log(`[TokenSyber] HTTP probe found port ${port}`);
-      tryWsConnect(port,
-        () => { discoveredPort = port; wsUrl = `ws://127.0.0.1:${port}`; isDiscovering = false; },
-        () => { discoverPortViaScan(); }
+    const data = await discoverPortViaHttp();
+    if (data !== null) {
+      console.log(`[TokenSyber] HTTP probe found port ${data.port}`);
+      discoveredPort = data.port;
+      tryWsConnect(data.port,
+        () => { isDiscovering = false; },
+        () => { discoverPortViaWsScan(); }
       );
       return;
     }
+    // HTTP 探测没找到，也走 WS 扫描兜底
+    discoverPortViaWsScan();
+    return;
   }
 
-  // Fallback to sequential WS scan
-  discoverPortViaScan();
+  // HTTPS 页面：直接走 WSS 并行扫描
+  discoverPortViaWsScan();
 }
 
-function discoverPortViaScan() {
-  // HTTPS 页面用并行 WS 扫描（跳过了 HTTP 探测，需要更快的发现速度）
-  const isSecurePage = window.location.protocol === 'https:';
+// ========== WS/WSS Scanning ==========
+
+function buildWsUrl(port) {
   if (isSecurePage) {
-    discoverPortViaParallelWs();
-  } else {
-    const ports = [];
-    for (let p = DEFAULT_PORT; p <= MAX_PORT; p++) ports.push(p);
-    discoverPort(ports, 0);
+    // HTTPS 页面 → wss://127.0.0.1:HTTPS_PORT (自签名证书)
+    return `wss://127.0.0.1:${port + HTTPS_PORT_OFFSET}`;
   }
+  return `ws://127.0.0.1:${port}`;
 }
 
-// 并行 WS 扫描：同时尝试所有端口，谁先连上用谁
-function discoverPortViaParallelWs() {
+// 并行扫描所有端口，谁先连上用谁
+function discoverPortViaWsScan() {
   let settled = false;
-  for (let port = DEFAULT_PORT; port <= MAX_PORT; port++) {
+  const ports = [];
+  for (let p = DEFAULT_PORT; p <= MAX_PORT; p++) ports.push(p);
+
+  for (const port of ports) {
     tryWsConnect(port,
       () => {
         if (settled) return;
         settled = true;
         discoveredPort = port;
-        wsUrl = `ws://127.0.0.1:${port}`;
         isDiscovering = false;
       },
       () => {
-        // 个别端口失败不影响其他端口的尝试
-        // 如果全部失败，由最后超时的那个 tryWsConnect 触发断线逻辑
+        // 个别端口失败不影响其他端口
       }
     );
   }
-  // 兜底：如果所有端口都失败，5 秒后标记断线
+
+  // 兜底：所有端口超时后标记断线
   setTimeout(() => {
     if (!settled) {
       settled = true;
@@ -139,31 +146,12 @@ function discoverPortViaParallelWs() {
       isDiscovering = false;
       scheduleReconnect();
     }
-  }, CONNECT_TIMEOUT + 500);
-}
-
-function discoverPort(ports, index) {
-  if (index >= ports.length) {
-    updateStatus('disconnected');
-    isDiscovering = false;
-    scheduleReconnect();
-    return;
-  }
-  const port = ports[index];
-  tryWsConnect(port,
-    () => {
-      discoveredPort = port;
-      wsUrl = `ws://127.0.0.1:${port}`;
-    },
-    () => {
-      discoverPort(ports, index + 1);
-    }
-  );
+  }, CONNECT_TIMEOUT + 1000);
 }
 
 function tryWsConnect(port, onSuccess, onFail) {
   let settled = false;
-  const url = `ws://127.0.0.1:${port}`;
+  const url = buildWsUrl(port);
   let socket;
   try {
     socket = new WebSocket(url);
@@ -176,7 +164,7 @@ function tryWsConnect(port, onSuccess, onFail) {
     if (!settled) {
       settled = true;
       socket.close();
-      console.warn(`[TokenSyber] WebSocket to port ${port} timed out`);
+      console.warn(`[TokenSyber] WebSocket to ${url} timed out`);
       onFail();
     }
   }, CONNECT_TIMEOUT);
@@ -186,6 +174,7 @@ function tryWsConnect(port, onSuccess, onFail) {
     settled = true;
     clearTimeout(timer);
     ws = socket;
+    wsUrl = url;
     isDiscovering = false;
     updateStatus('connected');
     if (!hasEverConnected) {
@@ -202,10 +191,12 @@ function tryWsConnect(port, onSuccess, onFail) {
     if (settled) return;
     settled = true;
     clearTimeout(timer);
-    console.warn(`[TokenSyber] WebSocket to port ${port} failed:`, event.type || 'connection error');
+    console.warn(`[TokenSyber] WebSocket to ${url} failed`);
     onFail();
   };
 }
+
+// ========== Socket Handlers ==========
 
 function wireSocketHandlers(socket) {
   lastMessageTime = Date.now();
@@ -281,6 +272,8 @@ function scheduleReconnect() {
   }, RECONNECT_DELAY);
 }
 
+// ========== Token Handling ==========
+
 function onTokenConsumed(count) {
   console.log('[TokenSyber] Token consumed:', count);
   addTokens(count);
@@ -313,6 +306,8 @@ function triggerFuelPulse(tokens) {
     setTimeout(() => tankBar.classList.remove('fuel-pulse'), 600);
   }
 }
+
+// ========== UI Updates ==========
 
 function updateStatus(status) {
   const indicator = document.getElementById('fuel-connection');
@@ -398,6 +393,21 @@ export async function runDiagnostics() {
   const results = [];
   let serverFound = false;
   let firewallSuspected = false;
+
+  // HTTPS 页面不能 fetch http://，跳过 HTTP 诊断，只给提示
+  if (isSecurePage) {
+    results.push('当前为 HTTPS 页面，无法直接探测本地服务器。');
+    results.push('请确认：');
+    results.push('1. 已安装 TokenSyber 插件并重启 Claude Code');
+    results.push('2. 浏览器已信任本地证书（访问下方链接并点击"继续"）');
+    const httpsPort = DEFAULT_PORT + HTTPS_PORT_OFFSET;
+    results.push(`<a href="https://127.0.0.1:${httpsPort}/fuel-port" target="_blank" style="color:var(--cyan,#00f0ff)">点击测试：https://127.0.0.1:${httpsPort}/fuel-port</a>`);
+    results.push('3. 如看到证书警告，点击"高级"→"继续前往"');
+
+    let html = results.join('<br>');
+    resultEl.innerHTML = html;
+    return;
+  }
 
   for (let p = DEFAULT_PORT; p <= MAX_PORT; p++) {
     const start = Date.now();
