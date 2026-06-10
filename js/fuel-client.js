@@ -26,6 +26,12 @@ export function init() {
   }
   setInterval(updateRateDisplay, 1000);
 
+  // 更换 Player ID 按钮
+  const changeBtn = document.getElementById('btn-change-player');
+  if (changeBtn) {
+    changeBtn.addEventListener('click', () => changePlayerId());
+  }
+
   // Browser console test: window.__testTokens(5000)
   window.__testTokens = (count = 5000) => {
     console.log('[TokenSyber] Manual test: injecting', count, 'tokens');
@@ -50,6 +56,11 @@ function showPlayerIdInput() {
   const input = document.getElementById('player-id-input');
   const btn = document.getElementById('btn-connect-player');
   const section = document.getElementById('player-id-section');
+  // 确保 \"连接 Claude Code\" 标签页是激活的
+  const guideConnect = document.getElementById('guide-connect');
+  const guideHowto = document.getElementById('guide-howto');
+  if (guideConnect) guideConnect.classList.remove('hidden');
+  if (guideHowto) guideHowto.classList.add('hidden');
   if (section) section.classList.remove('hidden');
   if (input) input.focus();
   if (btn) {
@@ -217,6 +228,8 @@ function updateStatus(status) {
   const diagnosticsBtn = document.getElementById('btn-fuel-diagnostics');
   const diagResult = document.getElementById('fuel-diagnostics-result');
   const qualityHint = document.getElementById('fuel-quality-hint');
+  const changePlayerBtn = document.getElementById('btn-change-player');
+  const hasPlayerId = !!getPlayerId();
   if (!indicator) return;
   if (status === 'connected') {
     playConnected();
@@ -238,7 +251,7 @@ function updateStatus(status) {
     playDisconnected();
     indicator.className = 'fuel-indicator disconnected';
     indicator.textContent = '●';
-    indicator.title = '燃料泵未连接';
+    indicator.title = hasPlayerId ? '燃料泵未连接 — 可以更换 Player ID' : '燃料泵未连接';
     if (setupPanel) setupPanel.classList.remove('hidden');
     if (toggleBtn) toggleBtn.classList.add('hidden');
     if (diagnosticsBtn) diagnosticsBtn.classList.remove('hidden');
@@ -248,6 +261,12 @@ function updateStatus(status) {
     } else {
       if (reconnectBtn) reconnectBtn.classList.add('hidden');
     }
+    // 显示 Player ID 输入区（让用户能看到输入框并更换 ID）
+    showPlayerIdInput();
+  }
+  // 有存储的 playerId 时才显示更换按钮
+  if (changePlayerBtn) {
+    changePlayerBtn.style.display = hasPlayerId ? '' : 'none';
   }
 }
 
@@ -335,4 +354,13 @@ export function reconnect() {
   manuallyDisconnected = false;
   const playerId = getPlayerId();
   if (playerId) connect(playerId);
+}
+
+export function changePlayerId() {
+  disconnect();
+  localStorage.removeItem(PLAYER_KEY);
+  showPlayerIdInput();
+  // 焦点到输入框
+  const input = document.getElementById('player-id-input');
+  if (input) setTimeout(() => input.focus(), 100);
 }

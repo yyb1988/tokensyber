@@ -1951,7 +1951,7 @@ body {
   color: var(--neon-cyan);
 }
 
-.btn-fuel-toggle {
+.btn-fuel-toggle, .btn-change-player {
   background: none;
   border: none;
   color: var(--text-dim);
@@ -1964,6 +1964,10 @@ body {
 
 .btn-fuel-toggle:hover {
   color: var(--danger);
+}
+
+.btn-change-player:hover {
+  color: var(--glitch-cyan);
 }
 
 .btn-reconnect {
