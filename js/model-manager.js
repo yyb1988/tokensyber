@@ -6,7 +6,7 @@ import { isModelBanned } from './ban-system.js';
 // CDN 切换：本地开发走相对路径，公网走 R2 CDN
 const CDN_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
   ? ''
-  : '';  // TODO: 上线后改为 R2 公网 URL，如 'https://cdn.tokensyber.com'
+  : 'https://pub-32c2ddcfcf824086b7a3ff0cd0c0aa78.r2.dev';
 
 let manifest = [];
 const modelCache = new Map();
