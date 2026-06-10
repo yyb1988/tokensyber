@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>隐私与服务条款 - TokenSyber</title>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --text: #c0c0c0;
+      --heading: #00f0ff;
+      --accent: #ff00aa;
+      --link: #00f0ff;
+      --border: rgba(0, 240, 255, 0.15);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Courier New', monospace;
+      line-height: 1.7;
+      padding: 2rem 1rem;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: var(--heading);
+      font-size: 1.5rem;
+      margin-bottom: 2rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    h2 {
+      color: var(--accent);
+      font-size: 1.1rem;
+      margin-top: 2rem;
+      margin-bottom: 0.5rem;
+    }
+    p { margin-bottom: 0.8rem; }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    ul { margin-left: 1.5rem; margin-bottom: 0.8rem; }
+    li { margin-bottom: 0.3rem; }
+    .back {
+      display: inline-block;
+      margin-top: 2rem;
+      padding: 0.4rem 1rem;
+      border: 1px solid var(--heading);
+      color: var(--heading);
+      text-decoration: none;
+      font-size: 0.85rem;
+    }
+    .back:hover { background: rgba(0, 240, 255, 0.1); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <h1>隐私与服务条款</h1>
+
+  <h2>数据存储</h2>
+  <p>TokenSyber 的所有游戏数据（进度、金币、库存、展示柜、市场记录等）均存储在您的浏览器 localStorage 中，不会上传至任何服务器。</p>
+  <ul>
+    <li>清除浏览器缓存将永久丢失所有游戏进度</li>
+    <li>不同浏览器或设备之间的数据互不相通</li>
+  </ul>
+
+  <h2>插件数据收集</h2>
+  <p>TokenSyber Claude Code 插件仅读取 Claude Code 会话 transcript 中的 token 使用量（input_tokens + output_tokens 数字），用于驱动游戏内的 3D 打印进度。插件不会读取、上传或存储您的对话内容。</p>
+  <ul>
+    <li>读取内容：仅 <code>usage.input_tokens</code> 和 <code>usage.output_tokens</code> 字段</li>
+    <li>传输方式：本地 WebSocket（127.0.0.1），数据不离开您的设备</li>
+    <li>存储位置：仅 <code>~/.tokensyber/state.json</code>（token 计数）</li>
+  </ul>
+
+  <h2>网络连接</h2>
+  <p>游戏页面通过 WebSocket 连接至本机运行的 TokenSyber 服务器（端口 3001-3010）。所有通信均在 localhost 内完成，不经过外部网络。</p>
+
+  <h2>第三方服务</h2>
+  <p>游戏页面从 CDN 加载以下第三方资源：</p>
+  <ul>
+    <li>Three.js（3D 渲染库）— 来自 CDN</li>
+    <li>3D 模型文件 — 来自对象存储服务</li>
+  </ul>
+  <p>上述请求遵循各服务的隐私政策，本游戏不控制也不收集这些请求产生的数据。</p>
+
+  <h2>Cookie 与追踪</h2>
+  <p>TokenSyber 不使用 Cookie、不使用任何用户追踪或分析工具（如 Google Analytics）。</p>
+
+  <h2>免责声明</h2>
+  <p>TokenSyber 是一个免费的实验性项目，按"原样"提供，不提供任何担保。</p>
+  <ul>
+    <li>游戏数据可能因浏览器更新、存储限制等原因丢失</li>
+    <li>游戏机制（金币价值、模型库存等）可能随时调整</li>
+    <li>项目可能随时停止维护</li>
+  </ul>
+
+  <h2>联系方式</h2>
+  <p>如有疑问，请通过 GitHub 仓库提交 Issue。</p>
+
+  <a class="back" href="index.html">← 返回游戏</a>
+</body>
+</html>

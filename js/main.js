@@ -1,25 +1,24 @@
 import { init as sceneInit, animate, addAnimateCallback } from './scene.js';
 import { init as gameStateInit } from './game-state.js';
 import { init as printerInit } from './printer.js';
-import { init as lockInit } from './lock-system.js';
 import { loadManifest } from './model-manager.js';
+import { initStock } from './stock.js';
 import { init as uiInit, processKeyboardInput } from './ui.js';
-import { updateCoinAnimations } from './coin-system.js';
 import { init as fuelClientInit } from './fuel-client.js';
+import { init as soundInit } from './sound-system.js';
 
 async function main() {
   sceneInit();
   gameStateInit();
   printerInit();
-  lockInit();
+  soundInit();
 
   await loadManifest();
+  initStock();
 
   uiInit();
   fuelClientInit();
 
-  // 每帧更新金币动画
-  addAnimateCallback(() => updateCoinAnimations());
   // 每帧处理键盘输入（WASD/QE持续旋转/缩放）
   addAnimateCallback(() => processKeyboardInput());
 

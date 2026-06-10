@@ -1,5 +1,37 @@
+# 模型资源（2.3GB，上传到 Cloudflare R2）
+models/characters/
+
+# 插件（独立仓库 yyb1988/tokensyber-plugin）
+tokensyber-plugin/
+
+# 依赖
 node_modules/
-dist/
-*.vsix
+
+# 开发工具
+.trae/
+.claude/
+
+# 构建产物 / 日志
+*.log
+server.log
+server.pid
+
+# 临时文件
+*.tmp
+*.bak
+
+# OS 生成
 .DS_Store
 Thumbs.db
+
+# 非发布文件
+compress_image.py
+download_images.js
+download_images.ps1
+test_api.js
+test-fuel.js
+vision.js
+ui-designs-glitch.html
+ui-redesign-proposal.html
+1.png
+DEV_LOG.md

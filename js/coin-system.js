@@ -1,221 +1,118 @@
-import * as THREE from 'three';
-import { getScene, getCamera, getRenderer } from './scene.js';
+// Token 驱动的金币系统（取代随机掉落机制）
+// - 模型打印过程中，每消耗 5,000,000 token 产生 1 金币（积攒到该模型）
+// - 模型完成、玩家收取时一次性全部到账
+// - 全服金币池上限 12,400 — 池中无币时新模型不产金币
+// - 中途放弃模型（重新生成）将丢弃该模型已积攒的金币（回到池中）
 
-let coins = [];
-let pendingCount = 0;
-let scene, camera;
-let spawnTimer = null;
-const MAX_VISIBLE = 3;
-const SPAWN_INTERVAL_MIN = 60000;  // 1分钟
-const SPAWN_INTERVAL_MAX = 60000;  // 1分钟
-const coinGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.05, 32);
-const coinMaterial = new THREE.MeshStandardMaterial({
-  color: 0xffd700,
-  metalness: 0.9,
-  roughness: 0.1,
-  emissive: 0x332200,
-});
-let onCollectCallback = null;
+const COIN_POOL_KEY = 'timecyber_coin_pool';
+export const COIN_POOL_CAP = 12_400;
+export const TOKENS_PER_COIN = 5_000_000;
 
-export function init(onCollect) {
-  scene = getScene();
-  camera = getCamera();
-  onCollectCallback = onCollect;
+let onMintCallback = null;       // (coin) => void，每次新积攒一枚金币时触发（UI 显示用）
+let onTransferCallback = null;   // (amount) => void，模型收取时金币入账
 
-  const canvas = getRenderer().domElement;
-  canvas.addEventListener('pointerdown', onPointerDown);
+// 当前模型积攒的金币（运行时状态，不持久化 — 模型放弃即丢失，符合"必须完成才能领"）
+let pendingCoins = 0;
+// 已为当前模型按 token 算过的"上次结算点"，避免重复计数
+let lastCheckpointTokens = 0;
 
-  scheduleNextSpawn();
-}
-
-function scheduleNextSpawn() {
-  const delay = SPAWN_INTERVAL_MIN + Math.random() * (SPAWN_INTERVAL_MAX - SPAWN_INTERVAL_MIN);
-  spawnTimer = setTimeout(() => {
-    spawnCoin();
-    scheduleNextSpawn();
-  }, delay);
-}
-
-function spawnCoin() {
-  pendingCount++;
-  if (coins.length < MAX_VISIBLE) {
-    showCoin();
+function loadPool() {
+  try {
+    const raw = localStorage.getItem(COIN_POOL_KEY);
+    if (raw === null) return COIN_POOL_CAP;
+    const n = parseInt(raw, 10);
+    if (isNaN(n) || n < 0) return COIN_POOL_CAP;
+    return Math.min(n, COIN_POOL_CAP);
+  } catch (e) {
+    return COIN_POOL_CAP;
   }
 }
 
-function showCoin() {
-  if (pendingCount <= 0) return;
-  pendingCount--;
-
-  const mesh = new THREE.Mesh(coinGeometry, coinMaterial.clone());
-  mesh.castShadow = true;
-
-  const angle = Math.random() * Math.PI * 2;
-  const radius = 0.3 + Math.random() * 1.0;
-  mesh.position.set(
-    Math.cos(angle) * radius,
-    2.5 + Math.random() * 1.5,
-    Math.sin(angle) * radius
-  );
-
-  const light = new THREE.PointLight(0xffd700, 0.5, 3);
-  mesh.add(light);
-
-  scene.add(mesh);
-
-  const coin = {
-    mesh,
-    baseY: mesh.position.y,
-    spawnTime: Date.now(),
-    collecting: false,
-  };
-  coins.push(coin);
+function savePool(n) {
+  try { localStorage.setItem(COIN_POOL_KEY, String(n)); } catch (e) {}
 }
 
-function showPendingCoins() {
-  while (coins.length < MAX_VISIBLE && pendingCount > 0) {
-    showCoin();
+let poolRemaining = null;
+
+export function init({ onMint, onTransfer } = {}) {
+  onMintCallback = onMint || null;
+  onTransferCallback = onTransfer || null;
+  if (poolRemaining === null) poolRemaining = loadPool();
+}
+
+export function getPoolRemaining() {
+  if (poolRemaining === null) poolRemaining = loadPool();
+  return poolRemaining;
+}
+
+export function getPendingCoins() {
+  return pendingCoins;
+}
+
+// 当前打印模型重置：开始新模型 / resume 已存在模型
+// 已收取的旧模型不应残留 pending，需要先 transferPending 处理
+export function resetForNewPrint() {
+  pendingCoins = 0;
+  lastCheckpointTokens = 0;
+}
+
+// 由 UI 注入循环每帧调用，传入"当前模型累计算力"
+// 内部用 checkpoint 差量计算应该铸造的金币数
+export function tickAccumulated(accumulatedTokens) {
+  if (accumulatedTokens <= lastCheckpointTokens) return;
+  const newCoinsTotal = Math.floor(accumulatedTokens / TOKENS_PER_COIN);
+  const oldCoinsTotal = Math.floor(lastCheckpointTokens / TOKENS_PER_COIN);
+  const delta = newCoinsTotal - oldCoinsTotal;
+  lastCheckpointTokens = accumulatedTokens;
+  if (delta <= 0) return;
+
+  // 池中剩余币决定能铸造多少
+  if (poolRemaining === null) poolRemaining = loadPool();
+  const mintable = Math.min(delta, poolRemaining);
+  if (mintable <= 0) return;
+
+  poolRemaining -= mintable;
+  savePool(poolRemaining);
+  pendingCoins += mintable;
+  if (onMintCallback) onMintCallback(mintable);
+}
+
+// 模型收取时：把 pending 金币转给玩家，清空 pending
+// 返回实际转入数量（即原 pending）
+export function transferPendingToPlayer() {
+  const amount = pendingCoins;
+  if (amount > 0) {
+    pendingCoins = 0;
+    lastCheckpointTokens = 0;
+    if (onTransferCallback) onTransferCallback(amount);
   }
+  return amount;
 }
 
-// 将金币动画集成到主渲染循环
-let animBound = false;
-export function updateCoinAnimations() {
-  const time = Date.now() * 0.001;
-  for (const coin of coins) {
-    if (coin.collecting) continue;
-    coin.mesh.rotation.y = time * 2;
-    coin.mesh.position.y = coin.baseY + Math.sin(time * 1.5 + coin.spawnTime) * 0.1;
+// 模型放弃（重新生成）：金币归还到池
+export function returnPendingToPool() {
+  if (pendingCoins <= 0) {
+    lastCheckpointTokens = 0;
+    return;
   }
+  if (poolRemaining === null) poolRemaining = loadPool();
+  poolRemaining = Math.min(COIN_POOL_CAP, poolRemaining + pendingCoins);
+  savePool(poolRemaining);
+  pendingCoins = 0;
+  lastCheckpointTokens = 0;
 }
 
-export function bindToRenderLoop() {
-  if (animBound) return;
-  animBound = true;
-  // 由 main.js 统一注册
+// 给 resume 用：玩家重启游戏时，当前进度的 pending 需要按 accumulatedTokens 重新计算
+// 但池可能已被扣过 — 没法重新扣。简化处理：
+// resume 不补 pending，玩家拿到的金币只算"本次游戏会话内产出的"
+// （存档迁移：把累计 token / 5M 作为已发金币基线，避免重复发）
+export function resumeFromAccumulated(accumulatedTokens) {
+  pendingCoins = 0;
+  lastCheckpointTokens = accumulatedTokens;
 }
 
-function onPointerDown(event) {
-  const rect = event.target.getBoundingClientRect();
-  const mouse = new THREE.Vector2(
-    ((event.clientX - rect.left) / rect.width) * 2 - 1,
-    -((event.clientY - rect.top) / rect.height) * 2 + 1
-  );
-
-  const raycaster = new THREE.Raycaster();
-  raycaster.setFromCamera(mouse, camera);
-
-  for (let i = coins.length - 1; i >= 0; i--) {
-    const coin = coins[i];
-    if (coin.collecting) continue;
-    const intersects = raycaster.intersectObject(coin.mesh);
-    if (intersects.length > 0) {
-      collectAllCoins(event);
-      break;
-    }
-  }
-}
-
-function collectAllCoins(event) {
-  const toCollect = coins.filter(c => !c.collecting);
-  const visibleCount = toCollect.length;
-  const total = visibleCount + pendingCount;
-  if (total === 0) return;
-  pendingCount = 0;
-
-  for (const coin of toCollect) {
-    coin.collecting = true;
-    const startTime = Date.now();
-    const duration = 400;
-    const startScale = coin.mesh.scale.x;
-    const startPos = coin.mesh.position.clone();
-
-    function animateCollect() {
-      const elapsed = Date.now() - startTime;
-      const t = Math.min(elapsed / duration, 1);
-      const ease = 1 - Math.pow(1 - t, 3);
-
-      coin.mesh.scale.setScalar(startScale * (1 - ease));
-      coin.mesh.rotation.y += 0.3;
-      coin.mesh.position.y = startPos.y + ease * 0.5;
-
-      if (t < 1) {
-        requestAnimationFrame(animateCollect);
-      } else {
-        scene.remove(coin.mesh);
-        coins = coins.filter(c => c !== coin);
-        showPendingCoins();
-      }
-    }
-    animateCollect();
-  }
-
-  // 如果没有可见金币但有积攒的，直接补发
-  if (visibleCount === 0) showPendingCoins();
-
-  // 浮动文字显示总收集数
-  const floater = document.createElement('div');
-  floater.className = 'coin-float-text';
-  floater.textContent = `+${total}`;
-  floater.style.left = event.clientX + 'px';
-  floater.style.top = event.clientY + 'px';
-  document.body.appendChild(floater);
-  setTimeout(() => floater.remove(), 1000);
-
-  if (onCollectCallback) onCollectCallback(total);
-}
-
-export function stop() {
-  if (spawnTimer) clearTimeout(spawnTimer);
-  spawnTimer = null;
-  for (const coin of coins) {
-    scene.remove(coin.mesh);
-  }
-  coins = [];
-  pendingCount = 0;
-}
-
-export function restart(onCollect) {
-  stop();
-  onCollectCallback = onCollect;
-  scheduleNextSpawn();
-}
-
-// 自动收集所有场上金币（键盘/打印完成时调用）
-export function collectAll() {
-  const toCollect = coins.filter(c => !c.collecting);
-  const visibleCount = toCollect.length;
-  const total = visibleCount + pendingCount;
-  if (total === 0) return;
-  pendingCount = 0;
-
-  for (const coin of toCollect) {
-    coin.collecting = true;
-    const startTime = Date.now();
-    const duration = 300;
-    const startPos = coin.mesh.position.clone();
-    const startScale = coin.mesh.scale.x;
-
-    function animateQuickCollect() {
-      const elapsed = Date.now() - startTime;
-      const t = Math.min(elapsed / duration, 1);
-      const ease = 1 - Math.pow(1 - t, 3);
-      coin.mesh.scale.setScalar(startScale * (1 - ease));
-      coin.mesh.rotation.y += 0.5;
-      coin.mesh.position.y = startPos.y + ease * 1.0;
-
-      if (t < 1) {
-        requestAnimationFrame(animateQuickCollect);
-      } else {
-        scene.remove(coin.mesh);
-        coins = coins.filter(c => c !== coin);
-        showPendingCoins();
-      }
-    }
-    animateQuickCollect();
-  }
-
-  if (visibleCount === 0) showPendingCoins();
-
-  if (onCollectCallback) onCollectCallback(total);
+// 调试：重置金币池（仅 ?debug）
+export function debugResetPool() {
+  poolRemaining = COIN_POOL_CAP;
+  savePool(poolRemaining);
 }

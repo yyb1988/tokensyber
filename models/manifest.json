@@ -1,20 +1,263 @@
 [
   {
-    "id": "default_cube",
-    "name": "赛博方块人",
+    "id": "patroller",
+    "name": "巡逻者",
     "rarity": "common",
-    "description": "初始型号的数字居民"
+    "category": "hm",
+    "description": "废土中的自主巡逻单元",
+    "file": "models/characters/hm/patroller/patroller.glb",
+    "displayImage": "models/characters/hm/patroller/display image-patroller.jpg"
   },
   {
-    "id": "robot_01",
-    "name": "工业机器人",
+    "id": "suppressor",
+    "name": "压制者",
     "rarity": "common",
-    "description": "基础型号的工业机器人"
+    "category": "hm",
+    "description": "重装镇压型步兵机甲",
+    "file": "models/characters/hm/suppressor/suppressor.glb",
+    "displayImage": "models/characters/hm/suppressor/display image-suppressor.jpg"
   },
   {
-    "id": "crystal_01",
-    "name": "水晶生命体",
+    "id": "sapper",
+    "name": "工兵",
+    "rarity": "common",
+    "category": "hm",
+    "description": "战场工程与排雷单元",
+    "file": "models/characters/hm/sapper/sapper.glb",
+    "displayImage": "models/characters/hm/sapper/display image-sapper.jpg"
+  },
+  {
+    "id": "sentinel",
+    "name": "哨兵",
+    "rarity": "common",
+    "category": "hm",
+    "description": "边界警戒与早期预警单元",
+    "file": "models/characters/hm/sentinel/sentinel.glb",
+    "displayImage": "models/characters/hm/sentinel/display image-sentinel.jpg"
+  },
+  {
+    "id": "headhunter",
+    "name": "猎头者",
     "rarity": "rare",
-    "description": "来自数字深渊的结晶体"
+    "category": "hm",
+    "description": "高机动猎杀型步兵",
+    "file": "models/characters/hm/headhunter/headhunter.glb",
+    "displayImage": "models/characters/hm/headhunter/display image-headhunter.jpg"
+  },
+  {
+    "id": "steelreaper",
+    "name": "钢铁收割者",
+    "rarity": "rare",
+    "category": "hm",
+    "description": "战场清道夫，以残骸为燃料的行刑者",
+    "file": "models/characters/hm/steelreaper/steelreaper.glb",
+    "displayImage": "models/characters/hm/steelreaper/display image-steelreaper.jpg"
+  },
+  {
+    "id": "commander",
+    "name": "指挥官",
+    "rarity": "epic",
+    "category": "hm",
+    "description": "人形兵装最高指挥单元，统御废土一切武装",
+    "file": "models/characters/hm/commander/commander.glb",
+    "displayImage": "models/characters/hm/commander/display image-commander.jpg"
+  },
+  {
+    "id": "ironspider",
+    "name": "铁蜘蛛",
+    "rarity": "common",
+    "category": "art",
+    "description": "六足侦察型节肢机兽，攀爬于废墟之间",
+    "file": "models/characters/art/ironspider/ironspider.glb",
+    "displayImage": "models/characters/art/ironspider/display image-ironspider.jpg"
+  },
+  {
+    "id": "siegecrab",
+    "name": "攻城蟹",
+    "rarity": "common",
+    "category": "art",
+    "description": "重甲钳击型攻城节肢，碾碎一切防线",
+    "file": "models/characters/art/siegecrab/siegecrab.glb",
+    "displayImage": "models/characters/art/siegecrab/display image-siegecrab.jpg"
+  },
+  {
+    "id": "blademantis",
+    "name": "刃螳螂",
+    "rarity": "common",
+    "category": "art",
+    "description": "高频刀刃型近战节肢，一击即断",
+    "file": "models/characters/art/blademantis/blademantis.glb",
+    "displayImage": "models/characters/art/blademantis/display image-blademantis.jpg"
+  },
+  {
+    "id": "scorpionking",
+    "name": "蝎王",
+    "rarity": "rare",
+    "category": "art",
+    "description": "尾针注入电磁脉冲的节肢霸主",
+    "file": "models/characters/art/scorpionking/scorpionking.glb",
+    "displayImage": "models/characters/art/scorpionking/display image-scorpionking.jpg"
+  },
+  {
+    "id": "emperorspider",
+    "name": "蛛皇",
+    "rarity": "epic",
+    "category": "art",
+    "description": "蛛网覆盖整座废城的节肢帝王",
+    "file": "models/characters/art/emperorspider/emperorspider.glb",
+    "displayImage": "models/characters/art/emperorspider/display image-emperorspider.jpg"
+  },
+  {
+    "id": "steelworm",
+    "name": "钢蠕虫",
+    "rarity": "common",
+    "category": "ser",
+    "description": "地底穿行的蛇形探矿单元",
+    "file": "models/characters/ser/steelworm/steelworm.glb",
+    "displayImage": "models/characters/ser/steelworm/display image-steelworm.jpg"
+  },
+  {
+    "id": "burrower",
+    "name": "潜掘者",
+    "rarity": "common",
+    "category": "ser",
+    "description": "深层掘进型蛇形机体，开辟地下通道",
+    "file": "models/characters/ser/burrower/burrower.glb",
+    "displayImage": "models/characters/ser/burrower/display image-burrower.jpg"
+  },
+  {
+    "id": "scoutbee",
+    "name": "侦察蜂",
+    "rarity": "common",
+    "category": "aer",
+    "description": "微型侦察型飞行器，蜂群出没于天际",
+    "file": "models/characters/aer/scoutbee/scoutbee.glb",
+    "displayImage": "models/characters/aer/scoutbee/display image-scoutbee.jpg"
+  },
+  {
+    "id": "swarmdrone",
+    "name": "蜂群无人机",
+    "rarity": "common",
+    "category": "aer",
+    "description": "集群作战型微型飞行器，遮天蔽日",
+    "file": "models/characters/aer/swarmdrone/swarmdrone.glb",
+    "displayImage": "models/characters/aer/swarmdrone/display image-swarmdrone.jpg"
+  },
+  {
+    "id": "gunship",
+    "name": "炮艇",
+    "rarity": "common",
+    "category": "aer",
+    "description": "重火力对地攻击飞行器",
+    "file": "models/characters/aer/gunship/gunship.glb",
+    "displayImage": "models/characters/aer/gunship/display image-gunship.jpg"
+  },
+  {
+    "id": "hunterkiller",
+    "name": "猎杀者",
+    "rarity": "rare",
+    "category": "aer",
+    "description": "高速追猎型飞行器，锁定即毁灭",
+    "file": "models/characters/aer/hunterkiller/hunterkiller.glb",
+    "displayImage": "models/characters/aer/hunterkiller/display image-hunterkiller.jpg"
+  },
+  {
+    "id": "siegebomb",
+    "name": "围城炸弹",
+    "rarity": "rare",
+    "category": "aer",
+    "description": "自毁式攻城飞行器，坠毁即引爆",
+    "file": "models/characters/aer/siegebomb/siegebomb.glb",
+    "displayImage": "models/characters/aer/siegebomb/display image-siegebomb.jpg"
+  },
+  {
+    "id": "deepray",
+    "name": "深鳐",
+    "rarity": "common",
+    "category": "aq",
+    "description": "深海滑翔型水生机体，无声掠过暗流",
+    "file": "models/characters/aq/deepray/deepray.glb",
+    "displayImage": "models/characters/aq/deepray/display image-deepray.jpg"
+  },
+  {
+    "id": "razorshark",
+    "name": "刃鲨",
+    "rarity": "common",
+    "category": "aq",
+    "description": "高机动切割型水生猎手",
+    "file": "models/characters/aq/razorshark/razorshark.glb",
+    "displayImage": "models/characters/aq/razorshark/display image-razorshark.jpg"
+  },
+  {
+    "id": "leviathan",
+    "name": "利维坦",
+    "rarity": "rare",
+    "category": "aq",
+    "description": "深海巨兽型水生机体，吞噬一切航路",
+    "file": "models/characters/aq/leviathan/leviathan.glb",
+    "displayImage": "models/characters/aq/leviathan/display image-leviathan.jpg"
+  },
+  {
+    "id": "hybrid-i",
+    "name": "融合体 I",
+    "rarity": "common",
+    "category": "bio",
+    "description": "初级生化融合体，机械与血肉的首次共生",
+    "file": "models/characters/bio/hybrid-i/hybrid-i.glb",
+    "displayImage": "models/characters/bio/hybrid-i/display image-hybrid-i.jpg"
+  },
+  {
+    "id": "hybrid-ii",
+    "name": "融合体 II",
+    "rarity": "common",
+    "category": "bio",
+    "description": "进阶生化融合体，机体与有机质深度融合",
+    "file": "models/characters/bio/hybrid-ii/hybrid-ii.glb",
+    "displayImage": "models/characters/bio/hybrid-ii/display image-hybrid-ii.jpg"
+  },
+  {
+    "id": "parasite",
+    "name": "寄生物",
+    "rarity": "rare",
+    "category": "bio",
+    "description": "寄生型生化融合体，劫持宿主神经系统",
+    "file": "models/characters/bio/parasite/parasite.glb",
+    "displayImage": "models/characters/bio/parasite/display image-parasite.jpg"
+  },
+  {
+    "id": "freshforge",
+    "name": "鲜活熔炉",
+    "rarity": "epic",
+    "category": "bio",
+    "description": "活体锻造型生化融合体，血肉即是兵工厂",
+    "file": "models/characters/bio/freshforge/freshforge.glb",
+    "displayImage": "models/characters/bio/freshforge/display image-freshforge.jpg"
+  },
+  {
+    "id": "watchtower",
+    "name": "瞭望塔",
+    "rarity": "common",
+    "category": "mega",
+    "description": "固定式巨型瞭望结构，监控方圆百里",
+    "file": "models/characters/mega/watchtower/watchtower.glb",
+    "displayImage": "models/characters/mega/watchtower/display image-watchtower.jpg"
+  },
+  {
+    "id": "bunkerbrain",
+    "name": "地堡脑",
+    "rarity": "common",
+    "category": "mega",
+    "description": "掩体型巨型计算核心，地下的战争之脑",
+    "file": "models/characters/mega/bunkerbrain/bunkerbrain.glb",
+    "displayImage": "models/characters/mega/bunkerbrain/display image-bunkerbrain.jpg"
+  },
+  {
+    "id": "forgefortress",
+    "name": "锻造要塞",
+    "rarity": "rare",
+    "category": "mega",
+    "description": "移动式巨型兵工厂要塞，行走的战争机器",
+    "file": "models/characters/mega/forgefortress/forgefortress.glb",
+    "displayImage": "models/characters/mega/forgefortress/display image-forgefortress.jpg"
   }
 ]

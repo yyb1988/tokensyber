@@ -21,14 +21,22 @@
   <!-- 顶部导航栏 -->
   <header id="header">
     <div class="header-left">
-      <h1 class="logo">时间赛博</h1>
+      <h1 class="logo" data-glitch="tokensyber">tokensyber</h1>
       <span class="tagline">算力驱动</span>
     </div>
     <div class="header-right">
-      <div class="coin-display">
+      <div class="total-injected-display" title="历史累计注入到游戏中的算力总量">
+        <span class="total-injected-icon">⚡</span>
+        <span class="total-injected-label">累计算力</span>
+        <span id="total-injected-count">0</span>
+      </div>
+      <div class="coin-display" title="你拥有的金币 / 全世界剩余金币池">
         <span class="coin-icon">&#9733;</span>
         <span id="coin-count">0</span>
+        <span class="coin-pool-divider">/</span>
+        <span class="coin-pool-remaining" id="coin-pool-remaining">12400</span>
       </div>
+      <button id="btn-market" class="btn btn-outline">市场 (M)</button>
       <button id="btn-cabinet" class="btn btn-outline">展示柜 (C)</button>
     </div>
   </header>
@@ -42,50 +50,112 @@
       <div id="loading-overlay">
         <div class="loading-text">初始化3D打印系统...</div>
       </div>
+      <!-- 点击收取提示 -->
+      <div id="click-hint" class="hidden">点击模型收取</div>
+      <!-- 视区底部悬浮：模型信息 + 进度条 -->
+      <div class="viewport-footer">
+        <div class="model-info" id="model-info">
+          <span class="model-name" id="current-model-name">等待开始...</span>
+          <span class="model-rarity" id="current-model-rarity"></span>
+          <span class="model-stock" id="current-model-stock" title="模型库存：抽到的型号每被收取一次库存 -1，越后越稀有"></span>
+          <span class="pending-coin-display hidden" id="pending-coin-display" title="本模型已积攒的金币：每消耗 500 万算力 +1，模型完成收取时全部到账">
+            <span class="pending-coin-icon">&#9733;</span>
+            <span id="pending-coin-count">0</span>
+          </span>
+        </div>
+        <div class="progress-section">
+          <div class="progress-bar-track">
+            <div id="progress-bar-fill" class="progress-bar-fill"></div>
+          </div>
+          <div class="progress-info">
+            <span id="progress-percent">0.0%</span>
+            <span id="remaining-time">算力: 0 / --</span>
+            <span id="eta-time" class="eta-display"></span>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- 进度与控制面板 -->
+    <!-- 控制面板（分层：Hero → 操作 → 抽屉） -->
     <div id="control-panel">
-      <div class="progress-section">
-        <div class="progress-bar-track">
-          <div id="progress-bar-fill" class="progress-bar-fill"></div>
+      <!-- 新玩家引导（未连接时显示，可折叠，默认展开） -->
+      <div id="fuel-setup" class="fuel-setup drawer open">
+        <div class="drawer-head">
+          <div class="drawer-title fuel-setup-title">算力未连接</div>
+          <span class="drawer-chevron">›</span>
         </div>
-        <div class="progress-info">
-          <span id="progress-percent">0.0%</span>
-          <span id="remaining-time">算力: 0 / 500K</span>
+        <div class="drawer-body">
+          <div class="drawer-content">
+            <div class="guide-tabs">
+              <button class="guide-tab active" data-tab="connect">连接 Claude Code</button>
+              <button class="guide-tab" data-tab="howto">玩法说明</button>
+            </div>
+
+            <!-- 连接 Claude Code -->
+            <div id="guide-connect" class="guide-panel">
+              <div class="guide-desc">复制下方提示词，粘贴到 Claude Code 对话框，即可自动安装插件并启动算力注入</div>
+              <div class="guide-prompt-box">
+                <pre id="guide-prompt-text">请帮我安装 TokenSyber 插件并启动。步骤：
+1. 运行 claude plugins marketplace add yyb1988/tokensyber-plugin 注册远程市场
+2. 运行 claude plugins install tokensyber@tokensyber-marketplace 安装插件
+3. 在 ~/.claude/settings.json 的 enabledPlugins 中添加 "tokensyber@tokensyber-marketplace": true
+4. 重启 Claude Code 使插件生效
+安装成功后状态栏会显示 🔥 TokenSyber: N tokens，表示插件正在工作，token 正在注入游戏。</pre>
+                <button id="btn-copy-prompt" class="btn btn-prompt-copy">复制提示词</button>
+              </div>
+              <div class="guide-note">状态栏显示 🔥 TokenSyber 时，说明算力正在注入游戏</div>
+            </div>
+
+            <!-- 玩法说明 -->
+            <div id="guide-howto" class="guide-panel hidden">
+              <div class="guide-flow">AI 算力 → 储液罐 → 注入3D打印机 → 生成模型 → 收取到展示柜</div>
+              <div class="guide-rules">
+                <div class="guide-rule"><span class="guide-rule-label">储液罐</span>自动模式持续注入 / 手动模式按需注入，上限 1万/秒</div>
+                <div class="guide-rule"><span class="guide-rule-label">重新生成</span>每日 3 次，用完后等待次日恢复</div>
+                <div class="guide-rule"><span class="guide-rule-label">金币</span>每消耗 500 万算力产 1 金币，模型完成收取时一次性到账（全服上限 12,400 枚）</div>
+                <div class="guide-rule"><span class="guide-rule-label">调试模式</span>URL 加 <strong>?debug</strong>，5K 算力完成模型</div>
+              </div>
+            </div>
+
+            <button id="btn-reconnect-fuel" class="btn btn-reconnect hidden">重新连接</button>
+            <button id="btn-fuel-diagnostics" class="btn btn-reconnect hidden">运行诊断</button>
+            <div id="fuel-diagnostics-result" class="fuel-diagnostics-result hidden"></div>
+          </div>
         </div>
       </div>
 
-      <!-- 燃料泵状态 -->
-      <div id="fuel-status" class="fuel-status">
-        <span id="fuel-connection" class="fuel-indicator disconnected" title="燃料泵未连接">●</span>
-        <span id="fuel-rate" class="fuel-rate-text">0/min</span>
-        <button id="btn-fuel-toggle" class="btn btn-fuel-toggle hidden" title="断开燃料泵">&#10005;</button>
-      </div>
-
-      <!-- 燃料泵连接提示（未连接时显示） -->
-      <div id="fuel-setup" class="fuel-setup">
-        <div class="fuel-setup-title">算力未连接</div>
-        <div class="fuel-setup-desc">安装 TokenSyber VS Code 扩展，让 AI 工具的 token 消耗自动成为燃料</div>
-        <a id="btn-download-extension" class="btn btn-download" href="extension/tokensyber-0.1.0.vsix" download>
-          <span class="download-icon">&#11015;</span> 下载 VS Code 扩展 (.vsix)
-        </a>
-        <button id="btn-reconnect-fuel" class="btn btn-reconnect hidden">重新连接</button>
-        <div class="fuel-setup-steps">
-          <div class="fuel-setup-step">1. 点击上方按钮下载 .vsix 文件</div>
-          <div class="fuel-setup-step">2. VS Code / Trae / Cursor 中按 <strong>Ctrl+Shift+P</strong> → 输入 <strong>Install from VSIX</strong> → 选择下载的文件</div>
-          <div class="fuel-setup-step">3. 重启编辑器，等待扩展自动激活，连接成功后此提示消失</div>
+      <!-- Hero: 储液罐 + 连接状态合并 -->
+      <div id="tank-section" class="tank-section hero-tank">
+        <div class="tank-header">
+          <span class="tank-label">储液罐 · TANK</span>
+          <span class="tank-conn" id="tank-conn-status">
+            <span id="fuel-connection" class="fuel-indicator disconnected" title="燃料泵未连接">●</span>
+            <span id="fuel-rate" class="fuel-rate-text">0/min</span>
+          </span>
+          <button id="btn-fuel-toggle" class="btn btn-fuel-toggle hidden" title="断开燃料泵">&#10005;</button>
+        </div>
+        <div class="tank-balance-row">
+          <span class="tank-balance" id="tank-balance">0</span>
+          <span class="tank-increment" id="tank-increment"></span>
+          <span class="tank-unit">算力</span>
+        </div>
+        <div class="tank-bar-container">
+          <div class="tank-bar-fill" id="tank-bar-fill"></div>
+        </div>
+        <div class="tank-controls">
+          <div class="flow-mode-toggle">
+            <button id="btn-flow-auto" class="btn btn-flow active">自动</button>
+            <button id="btn-flow-manual" class="btn btn-flow">手动</button>
+          </div>
+          <button id="btn-inject" class="btn btn-inject hidden">注入</button>
+          <button id="btn-stop-inject" class="btn btn-stop-inject hidden">停止</button>
         </div>
       </div>
 
-      <div class="model-info" id="model-info">
-        <span class="model-name" id="current-model-name">等待开始...</span>
-        <span class="model-rarity" id="current-model-rarity"></span>
-      </div>
-
+      <!-- 主操作：始终可见 -->
       <div class="button-group">
-        <button id="btn-regenerate" class="btn btn-primary">重新生成 (R)</button>
-        <button id="btn-lock" class="btn btn-secondary">锁定 (L)</button>
+        <button id="btn-regenerate" class="btn btn-primary" title="放弃当前模型，重新随机生成。每日 3 次，用完后等待次日恢复">重新生成 (R)</button>
+        <button id="btn-lock" class="btn btn-secondary" title="锁定模型，重新生成需输入密码">锁定 (L)</button>
       </div>
 
       <!-- 完成后的唯一代码显示 -->
@@ -95,7 +165,58 @@
           <code id="unique-code" class="unique-code">TC-00000000-00000000-0000</code>
           <button id="btn-copy-code" class="btn btn-small">复制</button>
         </div>
-        <div class="shortcut-hint">WASD 旋转 · QE 缩放 · Space 收集金币 · F 重置视角</div>
+      </div>
+
+      <!-- 抽屉: Ban 屏蔽 -->
+      <div class="drawer" id="drawer-ban">
+        <div class="drawer-head">
+          <div class="drawer-title">
+            🚫 屏蔽 · BAN <span class="drawer-badge" id="ban-badge">0/3</span>
+          </div>
+          <span class="drawer-chevron">›</span>
+        </div>
+        <div class="drawer-body">
+          <div class="drawer-content">
+            <div class="ban-slot-mini" id="ban-slot-mini">
+              <div>🔒</div><div>🔒</div><div>🔒</div>
+            </div>
+            <div class="ban-progress" id="ban-progress"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 抽屉: 连接与质量 -->
+      <div class="drawer" id="drawer-connection">
+        <div class="drawer-head">
+          <div class="drawer-title">⚡ 连接 · CONNECTION</div>
+          <span class="drawer-chevron">›</span>
+        </div>
+        <div class="drawer-body">
+          <div class="drawer-content">
+            <div id="fuel-quality-hint" class="fuel-quality-hint hidden quality-idle">
+              深度使用 AI 产生优质算力 → 算力流入储液罐 → 注入驱动3D打印
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 抽屉: 设置 -->
+      <div class="drawer" id="drawer-settings">
+        <div class="drawer-head">
+          <div class="drawer-title">⚙ 设置 · SETTINGS</div>
+          <span class="drawer-chevron">›</span>
+        </div>
+        <div class="drawer-body">
+          <div class="drawer-content">
+            <div class="setting-row">
+              <span>音效</span>
+              <button id="btn-sound" class="btn btn-secondary btn-icon-sm" title="音效开关">🔊</button>
+            </div>
+            <div class="setting-row">
+              <span>背景音乐</span>
+              <button id="btn-bgm" class="btn btn-secondary btn-icon-sm" title="背景音乐开关">🎵</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -105,10 +226,81 @@
   <div id="cabinet-view" class="hidden">
     <div class="cabinet-header">
       <h2>展示柜</h2>
-      <button id="btn-cabinet-close" class="btn btn-outline">返回</button>
+      <div class="cabinet-header-actions">
+        <button id="btn-cabinet-lock" class="btn btn-secondary" title="锁定展示柜后无法删除模型">🔓 锁定展示柜</button>
+        <button id="btn-cabinet-close" class="btn btn-outline">返回</button>
+      </div>
+    </div>
+    <!-- 世界库存看板（可折叠，默认折叠） -->
+    <div id="world-status" class="world-status drawer">
+      <div class="drawer-head">
+        <div class="drawer-title world-status-title">WORLD STATUS · 世界库存</div>
+        <span class="drawer-chevron">›</span>
+      </div>
+      <div class="drawer-body">
+        <div class="drawer-content">
+          <div id="world-status-bars" class="world-status-bars"></div>
+          <div id="world-status-summary" class="world-status-summary"></div>
+        </div>
+      </div>
+    </div>
+    <div class="cabinet-toolbar">
+      <div class="cabinet-toolbar-group" id="cabinet-category-tabs">
+        <button class="cabinet-chip active" data-category="all">全部</button>
+        <button class="cabinet-chip" data-category="hm">人形兵装</button>
+        <button class="cabinet-chip" data-category="art">节肢机兽</button>
+        <button class="cabinet-chip" data-category="ser">蛇形机体</button>
+        <button class="cabinet-chip" data-category="aer">飞行器</button>
+        <button class="cabinet-chip" data-category="aq">水生机体</button>
+        <button class="cabinet-chip" data-category="bio">生化融合体</button>
+        <button class="cabinet-chip" data-category="mega">巨构体</button>
+      </div>
+      <div class="cabinet-toolbar-right">
+        <div class="cabinet-toolbar-group" id="cabinet-view-tabs">
+          <button class="cabinet-chip active" data-view="grid" title="大图视图">大图</button>
+          <button class="cabinet-chip" data-view="compact" title="只显示名称与编号">简洁</button>
+        </div>
+        <button id="cabinet-sort-btn" class="cabinet-chip cabinet-sort-chip" data-sort="desc" title="按稀有度排序，点击切换升降">
+          <span class="cabinet-sort-label">稀有度</span>
+          <span class="cabinet-sort-arrow">↓</span>
+        </button>
+      </div>
     </div>
     <div id="cabinet-grid" class="cabinet-grid">
       <div class="cabinet-empty">还没有完成的模型</div>
+    </div>
+  </div>
+
+  <!-- 市场视图（默认隐藏） -->
+  <div id="market-view" class="hidden">
+    <div class="market-header">
+      <h2>黑市求购台</h2>
+      <div class="market-header-right">
+        <span class="market-refresh-info" id="market-refresh-info"></span>
+        <button id="btn-market-history" class="btn btn-outline">交易记录</button>
+        <button id="btn-market-close" class="btn btn-outline">返回</button>
+      </div>
+    </div>
+    <div class="market-intro">
+      废土黑市的商人正在求购特定模型。每 30 分钟刷新一批求购单。
+      <br>
+      <span style="color:var(--text-secondary)">交易 = 从展示柜中永久售出该模型 → 获得相应金币（不返还库存）</span>
+    </div>
+    <div id="market-board" class="market-board">
+      <div class="market-empty">加载中…</div>
+    </div>
+  </div>
+
+  <!-- 市场交易记录视图（默认隐藏） -->
+  <div id="market-history-view" class="hidden">
+    <div class="market-header">
+      <h2>我的交易记录</h2>
+      <div class="market-header-right">
+        <button id="btn-history-close" class="btn btn-outline">返回市场</button>
+      </div>
+    </div>
+    <div id="market-history-list" class="market-history-list">
+      <div class="market-empty">还没有交易记录</div>
     </div>
   </div>
 
@@ -121,52 +313,30 @@
     <div class="detail-info">
       <h3 id="detail-name"></h3>
       <span id="detail-rarity" class="model-rarity"></span>
+      <div id="detail-serial" class="detail-serial"></div>
+      <div id="detail-description" class="detail-description"></div>
       <div class="detail-code">
         <code id="detail-code"></code>
         <button id="btn-detail-copy" class="btn btn-small">复制</button>
       </div>
       <div id="detail-date"></div>
       <div id="detail-duration"></div>
+      <div id="detail-stock" class="detail-stock"></div>
+      <button id="btn-detail-delete" class="btn btn-danger" style="margin-top:12px;width:100%">删除模型</button>
     </div>
   </div>
 
-  <!-- 锁定模态框 -->
-  <div id="lock-modal" class="modal hidden">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-      <h3 id="lock-modal-title">锁定模型</h3>
-      <p id="lock-modal-desc">设置密码后，重新生成需要输入密码确认</p>
-      <div class="form-group">
-        <label for="lock-password">密码</label>
-        <input type="password" id="lock-password" placeholder="至少4位" autocomplete="new-password">
-      </div>
-      <div class="form-group" id="confirm-group">
-        <label for="lock-confirm">确认密码</label>
-        <input type="password" id="lock-confirm" placeholder="再次输入" autocomplete="new-password">
-      </div>
-      <div id="lock-error" class="error-text hidden"></div>
-      <div class="modal-buttons">
-        <button id="btn-lock-cancel" class="btn btn-outline">取消 (Esc)</button>
-        <button id="btn-lock-confirm" class="btn btn-primary">确认 (Enter)</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 确认模态框 -->
-  <div id="confirm-modal" class="modal hidden">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-      <h3 id="confirm-modal-title">确认操作</h3>
-      <p id="confirm-modal-desc"></p>
-      <div class="modal-buttons">
-        <button id="btn-confirm-cancel" class="btn btn-outline">取消 (Esc)</button>
-        <button id="btn-confirm-ok" class="btn btn-primary">确认 (Enter)</button>
-      </div>
-    </div>
-  </div>
+  <!-- 通用模态框由 modal.js 动态生成，此处不再预留 -->
 
   <!-- 提示消息 -->
   <div id="toast-container"></div>
+
+  <!-- 页脚 -->
+  <footer class="site-footer">
+    <a href="privacy.html">隐私与服务条款</a>
+    <span class="footer-sep">·</span>
+    <a href="https://github.com/yyb1988/tokensyber-plugin" target="_blank" rel="noopener">GitHub</a>
+  </footer>
 
   <script type="module" src="js/main.js"></script>
 </body>

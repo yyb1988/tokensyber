@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { getScene, addAnimateCallback, removeAnimateCallback } from './scene.js';
+import { getScene, addAnimateCallback, removeAnimateCallback, setTurntableModel, setSpotlightMode } from './scene.js';
 import { getProgress } from './game-state.js';
 
 let clipPlane;
@@ -11,6 +11,8 @@ let currentModel = null;
 let modelBoundingBox = null;
 let isPrinting = false;
 let fuelPulseIntensity = 0;
+const COLOR_FUEL = new THREE.Color(0x00ff88);
+const COLOR_IDLE = new THREE.Color(0x00f0ff);
 
 const PARTICLE_COUNT = 150;
 const RING_SEGMENTS = 64;
@@ -103,8 +105,10 @@ function resetParticle(i, positions, velocities, ages, maxAges) {
   maxAges[i] = 0.5 + Math.random() * 1.5;
 }
 
-function onFuelPulse() {
-  fuelPulseIntensity = 1.0;
+function onFuelPulse(e) {
+  const tokens = e?.detail?.tokens || 1000;
+  const scale = Math.min(tokens / 5000, 1);
+  fuelPulseIntensity = 0.5 + scale * 0.5;
 }
 
 export function startPrint(model) {
@@ -118,6 +122,8 @@ export function startPrint(model) {
   currentModel = model;
   scene.add(model);
   if (!basePlatform.parent) scene.add(basePlatform);
+  setTurntableModel(model);
+  setSpotlightMode(model.userData.modelId || '');
 
   // 计算模型边界
   modelBoundingBox = new THREE.Box3().setFromObject(model);
@@ -149,6 +155,8 @@ export function startPrintDirect(model) {
   currentModel = model;
   scene.add(model);
   if (!basePlatform.parent) scene.add(basePlatform);
+  setTurntableModel(model);
+  setSpotlightMode(model.userData.modelId || '');
 
   isPrinting = false;
   printerRing.visible = false;
@@ -228,9 +236,9 @@ function updatePrintEffect() {
   if (fuelPulseIntensity > 0) {
     fuelPulseIntensity = Math.max(0, fuelPulseIntensity - 0.016);
     // 脉冲时粒子颜色偏绿
-    particleSystem.material.color.lerp(new THREE.Color(0x00ff88), 0.1);
+    particleSystem.material.color.lerp(COLOR_FUEL, 0.1);
   } else {
-    particleSystem.material.color.lerp(new THREE.Color(0x00f0ff), 0.05);
+    particleSystem.material.color.lerp(COLOR_IDLE, 0.05);
   }
 
   // 打印头随时间旋转
@@ -244,9 +252,10 @@ function updateParticles(currentHeight) {
   const positions = particleSystem.geometry.attributes.position.array;
   const { velocities, ages, maxAges } = particleSystem.geometry.userData;
   const dt = 0.016;
+  const speedMul = 1 + fuelPulseIntensity * 3;
 
   for (let i = 0; i < PARTICLE_COUNT; i++) {
-    ages[i] += dt;
+    ages[i] += dt * speedMul;
     if (ages[i] > maxAges[i]) {
       resetParticle(i, positions, velocities, ages, maxAges);
       const angle = Math.random() * Math.PI * 2;
@@ -255,11 +264,12 @@ function updateParticles(currentHeight) {
       positions[i * 3 + 1] = currentHeight;
       positions[i * 3 + 2] = Math.sin(angle) * radius;
     }
-    positions[i * 3] += velocities[i * 3];
-    positions[i * 3 + 1] += velocities[i * 3 + 1];
-    positions[i * 3 + 2] += velocities[i * 3 + 2];
+    positions[i * 3] += velocities[i * 3] * speedMul;
+    positions[i * 3 + 1] += velocities[i * 3 + 1] * speedMul;
+    positions[i * 3 + 2] += velocities[i * 3 + 2] * speedMul;
   }
   particleSystem.geometry.attributes.position.needsUpdate = true;
+  particleSystem.material.size = 0.04 + fuelPulseIntensity * 0.04;
 }
 
 function completePrint() {
@@ -289,6 +299,8 @@ export function stopPrint() {
     scene.remove(currentModel);
     currentModel = null;
   }
+  setTurntableModel(null);
+  setSpotlightMode('');
   scene.remove(basePlatform);
 
   // 清理场景中的打印组件（它们可能已添加也可能未添加）

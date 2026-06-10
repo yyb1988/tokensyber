@@ -1,105 +1,62 @@
-let onLockSet = null;
-let onUnlockSuccess = null;
+import { showModal, shakeField, showModalError } from './modal.js';
 
-export function init() {
-  const modal = document.getElementById('lock-modal');
-  const btnCancel = document.getElementById('btn-lock-cancel');
-  const btnConfirm = document.getElementById('btn-lock-confirm');
-  const backdrop = modal.querySelector('.modal-backdrop');
+export function showLockModal(callback, opts = {}) {
+  const errorId = 'lock-error-' + Date.now();
 
-  btnCancel.addEventListener('click', hideModal);
-  backdrop.addEventListener('click', hideModal);
-  btnConfirm.addEventListener('click', handleConfirm);
-}
-
-export function showLockModal(callback) {
-  onLockSet = callback;
-  const modal = document.getElementById('lock-modal');
-  const title = document.getElementById('lock-modal-title');
-  const desc = document.getElementById('lock-modal-desc');
-  const confirmGroup = document.getElementById('confirm-group');
-  const passwordInput = document.getElementById('lock-password');
-  const confirmInput = document.getElementById('lock-confirm');
-  const errorEl = document.getElementById('lock-error');
-
-  title.textContent = '锁定模型';
-  desc.textContent = '设置密码后，重新生成需要输入密码确认';
-  confirmGroup.classList.remove('hidden');
-  passwordInput.value = '';
-  confirmInput.value = '';
-  passwordInput.type = 'password';
-  errorEl.classList.add('hidden');
-
-  modal.classList.remove('hidden');
-  passwordInput.focus();
-}
-
-export function showUnlockModal(callback) {
-  onUnlockSuccess = callback;
-  const modal = document.getElementById('lock-modal');
-  const title = document.getElementById('lock-modal-title');
-  const desc = document.getElementById('lock-modal-desc');
-  const confirmGroup = document.getElementById('confirm-group');
-  const passwordInput = document.getElementById('lock-password');
-  const confirmInput = document.getElementById('lock-confirm');
-  const errorEl = document.getElementById('lock-error');
-
-  title.textContent = '解锁模型';
-  desc.textContent = '请输入密码以解锁模型';
-  confirmGroup.classList.add('hidden');
-  passwordInput.value = '';
-  confirmInput.value = '';
-  passwordInput.type = 'password';
-  errorEl.classList.add('hidden');
-
-  modal.classList.remove('hidden');
-  passwordInput.focus();
-}
-
-function hideModal() {
-  document.getElementById('lock-modal').classList.add('hidden');
-  onLockSet = null;
-  onUnlockSuccess = null;
-}
-
-async function handleConfirm() {
-  const password = document.getElementById('lock-password').value;
-  const confirm = document.getElementById('lock-confirm').value;
-  const errorEl = document.getElementById('lock-error');
-  const isLockMode = !document.getElementById('confirm-group').classList.contains('hidden');
-
-  if (isLockMode) {
-    // 设置密码模式
-    if (password.length < 4) {
-      showError(errorEl, '密码至少4位');
+  showModal({
+    title: opts.title || '锁定模型',
+    desc: opts.desc || '设置密码后，重新生成需要输入密码确认',
+    fields: [
+      { id: 'password', label: '密码', type: 'password', placeholder: '至少4位', autocomplete: 'new-password' },
+      { id: 'confirm', label: '确认密码', type: 'password', placeholder: '再次输入', autocomplete: 'new-password' },
+    ],
+    errorId,
+    buttons: [
+      { id: 'cancel', text: '取消 (Esc)', style: 'outline', escape: true },
+      { id: 'ok', text: '确认 (Enter)', style: 'primary', enter: true },
+    ],
+  }).then(async (result) => {
+    if (result === 'cancel') return;
+    const { values } = result;
+    if (values.password.length < 4) {
+      showModalError(errorId, '密码至少4位');
+      shakeField('password');
       return;
     }
-    if (password !== confirm) {
-      showError(errorEl, '两次密码不一致');
+    if (values.password !== values.confirm) {
+      showModalError(errorId, '两次密码不一致');
+      shakeField('password');
       return;
     }
-    const hash = await hashPassword(password);
-    if (onLockSet) onLockSet(hash);
-    hideModal();
-  } else {
-    // 解锁模式
-    const hash = await hashPassword(password);
-    if (onUnlockSuccess) {
-      const success = onUnlockSuccess(hash);
-      if (success) {
-        hideModal();
-      }
-    }
-  }
+    const hash = await hashPassword(values.password);
+    callback(hash);
+  });
 }
 
-function showError(el, msg) {
-  el.textContent = msg;
-  el.classList.remove('hidden');
-  // 抖动
-  const input = document.getElementById('lock-password');
-  input.classList.add('shake');
-  setTimeout(() => input.classList.remove('shake'), 400);
+export function showUnlockModal(callback, opts = {}) {
+  const errorId = 'unlock-error-' + Date.now();
+
+  showModal({
+    title: opts.title || '解锁模型',
+    desc: opts.desc || '请输入密码以解锁模型',
+    fields: [
+      { id: 'password', label: '密码', type: 'password', placeholder: '输入密码', autocomplete: 'current-password' },
+    ],
+    errorId,
+    buttons: [
+      { id: 'cancel', text: '取消 (Esc)', style: 'outline', escape: true },
+      { id: 'ok', text: '确认 (Enter)', style: 'primary', enter: true },
+    ],
+  }).then(async (result) => {
+    if (result === 'cancel') return;
+    const { values } = result;
+    const hash = await hashPassword(values.password);
+    const success = callback(hash);
+    if (!success) {
+      showModalError(errorId, '密码错误');
+      shakeField('password');
+    }
+  });
 }
 
 export async function hashPassword(password) {
