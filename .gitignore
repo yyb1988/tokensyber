@@ -4,6 +4,10 @@ models/characters/
 # 插件（独立仓库 yyb1988/tokensyber-plugin）
 tokensyber-plugin/
 
+# Worker（独立部署到 Cloudflare Workers）
+worker/node_modules/
+worker/.wrangler/
+
 # 依赖
 node_modules/
 

@@ -2391,6 +2391,39 @@ body {
   font-size: 0.75rem;
 }
 
+/* === Player ID 输入 === */
+.player-id-section {
+  margin-top: 0.8rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--glitch-border, rgba(0,240,255,0.15));
+}
+.player-id-section .guide-desc {
+  margin-bottom: 0.5rem;
+}
+.player-id-input-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.player-id-input-row input {
+  flex: 1;
+  font-family: var(--font-mono, 'Courier New', monospace);
+  font-size: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--glitch-border, rgba(0,240,255,0.15));
+  border-radius: 2px;
+  color: var(--cyan, #00f0ff);
+  outline: none;
+}
+.player-id-input-row input:focus {
+  border-color: var(--cyan, #00f0ff);
+  box-shadow: 0 0 6px rgba(0,240,255,0.3);
+}
+.player-id-input-row input::placeholder {
+  color: rgba(0,240,255,0.3);
+}
+
 /* === 页脚 === */
 .site-footer {
   text-align: center;

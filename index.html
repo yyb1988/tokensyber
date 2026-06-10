@@ -100,14 +100,17 @@
 2. 运行 claude plugins install tokensyber@tokensyber-marketplace 安装插件
 3. 在 ~/.claude/settings.json 的 enabledPlugins 中添加 "tokensyber@tokensyber-marketplace": true
 4. 重启 Claude Code 使插件生效
+5. 查看文件 ~/.tokensyber/player.json，将 playerId 复制到游戏页面的 Player ID 输入框
 安装成功后状态栏会显示 🔥 TokenSyber: N tokens，表示插件正在工作，token 正在注入游戏。</pre>
                 <button id="btn-copy-prompt" class="btn btn-prompt-copy">复制提示词</button>
               </div>
               <div class="guide-note">状态栏显示 🔥 TokenSyber 时，说明算力正在注入游戏</div>
-              <div class="guide-note" id="cert-trust-note" style="display:none">
-                <strong>🔒 首次使用需信任本地证书：</strong>点击
-                <a href="https://127.0.0.1:3011/fuel-port" target="_blank" rel="noopener" style="color:var(--cyan,#00f0ff)">此链接</a>，
-                浏览器会提示"不安全"→ 点击"高级"→"继续前往 127.0.0.1（不安全）"→ 完成后刷新本页面
+              <div id="player-id-section" class="player-id-section">
+                <div class="guide-desc">输入你的 Player ID 连接算力泵（从 <code>~/.tokensyber/player.json</code> 获取）</div>
+                <div class="player-id-input-row">
+                  <input type="text" id="player-id-input" placeholder="粘贴 Player ID..." spellcheck="false">
+                  <button id="btn-connect-player" class="btn btn-prompt-copy">连接</button>
+                </div>
               </div>
             </div>
 
@@ -343,13 +346,6 @@
     <a href="https://github.com/yyb1988/tokensyber-plugin" target="_blank" rel="noopener">GitHub</a>
   </footer>
 
-  <script>
-    // HTTPS 页面显示证书信任提示
-    if (location.protocol === 'https:') {
-      const note = document.getElementById('cert-trust-note');
-      if (note) note.style.display = '';
-    }
-  </script>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
