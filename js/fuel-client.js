@@ -1,8 +1,8 @@
 import { addTokens } from './game-state.js';
 import { playConnected, playDisconnected } from './sound-system.js';
 
-const API_BASE = 'https://tokensyber-api.823009758.workers.dev';
-const WS_BASE = 'wss://tokensyber-api.823009758.workers.dev/ws';
+const API_BASE = '';
+const WS_BASE = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}`;
 const PLAYER_KEY = 'tokensyber_player_id';
 const RECONNECT_DELAY = 5000;
 const PING_INTERVAL = 30000;
@@ -86,7 +86,7 @@ function showPlayerIdInput() {
 function connect(playerId) {
   if (ws && ws.readyState === WebSocket.OPEN) return;
 
-  const url = `${WS_BASE}?player=${encodeURIComponent(playerId)}`;
+  const url = `${WS_BASE}/ws?player=${encodeURIComponent(playerId)}`;
   console.log('[TokenSyber] Connecting to', url);
 
   try {
