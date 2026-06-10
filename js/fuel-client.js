@@ -70,6 +70,11 @@ async function discoverAndConnect() {
   if (isDiscovering) return;
   isDiscovering = true;
 
+  // HTTPS 页面无法 fetch http://127.0.0.1（混合内容阻断），
+  // 但 Chrome 允许 ws://127.0.0.1 WebSocket 连接（开发工具特例）。
+  // 策略：HTTPS 页面跳过 HTTP 探测，直接走 WS 扫描。
+  const isSecurePage = window.location.protocol === 'https:';
+
   // Try cached port via WS first (instant if server still there)
   if (discoveredPort) {
     tryWsConnect(discoveredPort,
@@ -79,15 +84,17 @@ async function discoverAndConnect() {
     return;
   }
 
-  // HTTP port discovery (fast, parallel)
-  const port = await discoverPortViaHttp();
-  if (port !== null) {
-    console.log(`[TokenSyber] HTTP probe found port ${port}`);
-    tryWsConnect(port,
-      () => { discoveredPort = port; wsUrl = `ws://127.0.0.1:${port}`; isDiscovering = false; },
-      () => { discoverPortViaScan(); }
-    );
-    return;
+  // HTTP port discovery (fast, parallel) — only on non-HTTPS pages
+  if (!isSecurePage) {
+    const port = await discoverPortViaHttp();
+    if (port !== null) {
+      console.log(`[TokenSyber] HTTP probe found port ${port}`);
+      tryWsConnect(port,
+        () => { discoveredPort = port; wsUrl = `ws://127.0.0.1:${port}`; isDiscovering = false; },
+        () => { discoverPortViaScan(); }
+      );
+      return;
+    }
   }
 
   // Fallback to sequential WS scan
@@ -95,9 +102,44 @@ async function discoverAndConnect() {
 }
 
 function discoverPortViaScan() {
-  const ports = [];
-  for (let p = DEFAULT_PORT; p <= MAX_PORT; p++) ports.push(p);
-  discoverPort(ports, 0);
+  // HTTPS 页面用并行 WS 扫描（跳过了 HTTP 探测，需要更快的发现速度）
+  const isSecurePage = window.location.protocol === 'https:';
+  if (isSecurePage) {
+    discoverPortViaParallelWs();
+  } else {
+    const ports = [];
+    for (let p = DEFAULT_PORT; p <= MAX_PORT; p++) ports.push(p);
+    discoverPort(ports, 0);
+  }
+}
+
+// 并行 WS 扫描：同时尝试所有端口，谁先连上用谁
+function discoverPortViaParallelWs() {
+  let settled = false;
+  for (let port = DEFAULT_PORT; port <= MAX_PORT; port++) {
+    tryWsConnect(port,
+      () => {
+        if (settled) return;
+        settled = true;
+        discoveredPort = port;
+        wsUrl = `ws://127.0.0.1:${port}`;
+        isDiscovering = false;
+      },
+      () => {
+        // 个别端口失败不影响其他端口的尝试
+        // 如果全部失败，由最后超时的那个 tryWsConnect 触发断线逻辑
+      }
+    );
+  }
+  // 兜底：如果所有端口都失败，5 秒后标记断线
+  setTimeout(() => {
+    if (!settled) {
+      settled = true;
+      updateStatus('disconnected');
+      isDiscovering = false;
+      scheduleReconnect();
+    }
+  }, CONNECT_TIMEOUT + 500);
 }
 
 function discoverPort(ports, index) {
