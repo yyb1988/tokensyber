@@ -58,7 +58,15 @@ export function init() {
 
 // ========== 工具函数 ==========
 
+// TEMPORARY DIAGNOSTIC: remove after sound source identified
+function _logSound(type, freq) {
+  const stack = new Error().stack;
+  const caller = stack?.split('\n')[3]?.trim() || 'unknown';
+  console.warn(`[AUDIO] ${type} ${freq}Hz | ${caller}`);
+}
+
 function osc(ctx, type, freq, start, end, gainVal = 0.3) {
+  _logSound(type, freq);
   const o = ctx.createOscillator();
   const g = ctx.createGain();
   o.type = type;
@@ -73,6 +81,7 @@ function osc(ctx, type, freq, start, end, gainVal = 0.3) {
 }
 
 function noise(ctx, start, end, gainVal = 0.15) {
+  _logSound('noise', 0);
   const bufferSize = ctx.sampleRate * (end - start + 0.1);
   const buffer = ctx.createBuffer(1, Math.max(bufferSize, 1), ctx.sampleRate);
   const data = buffer.getChannelData(0);
@@ -90,6 +99,7 @@ function noise(ctx, start, end, gainVal = 0.15) {
 }
 
 function filteredNoise(ctx, start, end, freq, Q, gainVal = 0.15) {
+  _logSound('filteredNoise', freq);
   const bufferSize = ctx.sampleRate * (end - start + 0.1);
   const buffer = ctx.createBuffer(1, Math.max(bufferSize, 1), ctx.sampleRate);
   const data = buffer.getChannelData(0);
