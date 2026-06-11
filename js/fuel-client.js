@@ -3,6 +3,7 @@ import { playConnected, playDisconnected } from './sound-system.js';
 
 const API_BASE = '';
 const PLAYER_KEY = 'tokensyber_player_id';
+const HMAC_KEY = 'tokensyber_hmac_key';
 const POLL_INTERVAL = 2000;
 
 let pollTimer = null;
@@ -58,6 +59,8 @@ function showPlayerIdInput() {
   const guideHowto = document.getElementById('guide-howto');
   if (guideConnect) guideConnect.classList.remove('hidden');
   if (guideHowto) guideHowto.classList.add('hidden');
+  const guidePlayerJson = document.getElementById('guide-player-json');
+  if (guidePlayerJson) guidePlayerJson.classList.add('hidden');
   if (section) section.classList.remove('hidden');
   if (input) input.focus();
   if (btn) {
@@ -78,12 +81,57 @@ function showPlayerIdInput() {
   updateStatus('disconnected');
 }
 
+// ========== HMAC Key ==========
+
+function getOrCreateHmacKey() {
+  let key = localStorage.getItem(HMAC_KEY);
+  if (!key) {
+    const arr = new Uint8Array(32);
+    crypto.getRandomValues(arr);
+    key = Array.from(arr, b => b.toString(16).padStart(2, '0')).join('');
+    localStorage.setItem(HMAC_KEY, key);
+  }
+  return key;
+}
+
+async function registerHmacKey(playerId, hmacKey) {
+  try {
+    const res = await fetch(`${API_BASE}/register-key`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerId, key: hmacKey }),
+    });
+    if (res.ok) {
+      showPlayerJsonGuide(playerId, hmacKey);
+      return true;
+    }
+    if (res.status === 409) {
+      // Key already registered (not by us — potential conflict)
+      console.warn('[TokenSyber] HMAC key already registered on server');
+      return true; // still show the guide with our key
+    }
+  } catch {}
+  return false;
+}
+
+function showPlayerJsonGuide(playerId, hmacKey) {
+  const guideEl = document.getElementById('guide-player-json');
+  if (!guideEl) return;
+  const json = JSON.stringify({ playerId, hmacKey }, null, 2);
+  guideEl.querySelector('.player-json-code').textContent = json;
+  guideEl.classList.remove('hidden');
+}
+
 // ========== Polling Connection ==========
 
 function connect(playerId) {
   manuallyDisconnected = false;
   stopPolling();
   lastKnownTotalTokens = 0; // reset on fresh connect
+
+  // Register HMAC key (required for fuel-inject to work)
+  const hmacKey = getOrCreateHmacKey();
+  registerHmacKey(playerId, hmacKey);
 
   // Immediate first fetch to get baseline
   fetchStats(playerId).then(total => {

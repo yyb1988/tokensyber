@@ -114,6 +114,13 @@
               </div>
             </div>
 
+            <!-- player.json 配置（HMAC 密钥注册后显示） -->
+            <div id="guide-player-json" class="guide-panel hidden">
+              <div class="guide-desc">复制以下内容保存为 <code>~/.tokensyber/player.json</code>（Claude Code 插件凭此签名注入算力）：</div>
+              <pre class="player-json-code" style="background:#0a0a0f;color:var(--neon-cyan);padding:8px;font-size:11px;overflow:auto;max-height:120px;border:1px solid var(--border-color);border-radius:4px;"></pre>
+              <div class="guide-note">⚠ 密钥只生成一次，请妥善保存。HMAC 签名确保只有你能注入该 Player ID 的算力。</div>
+            </div>
+
             <!-- 玩法说明 -->
             <div id="guide-howto" class="guide-panel hidden">
               <div class="guide-flow">AI 算力 → 储液罐 → 注入3D打印机 → 生成模型 → 收取到展示柜</div>

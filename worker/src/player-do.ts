@@ -47,6 +47,11 @@ export class PlayerDO implements DurableObject {
       return this.handleStats();
     }
 
+    // register-key (POST only, first-come)
+    if (url.pathname === '/register-key' && request.method === 'POST') {
+      return this.handleRegisterKey(request);
+    }
+
     return new Response('Not found', { status: 404 });
   }
 
@@ -90,15 +95,19 @@ export class PlayerDO implements DurableObject {
       });
     }
 
-    // HMAC verification (enforce after key is established)
-    if (this.hmacKey) {
-      const expectedSig = await this.computeHMAC(playerId, tokens);
-      if (sig !== expectedSig) {
-        return new Response(JSON.stringify({ error: 'Invalid signature' }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
+    // HMAC verification — REQUIRED for all fuel-inject requests
+    if (!this.hmacKey) {
+      return new Response(JSON.stringify({ error: 'HMAC key not registered — connect game page first' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    const expectedSig = await this.computeHMAC(playerId, tokens);
+    if (sig !== expectedSig) {
+      return new Response(JSON.stringify({ error: 'Invalid signature' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     // Accept and process — always accumulate (game polls /fuel-stats)
@@ -137,6 +146,38 @@ export class PlayerDO implements DurableObject {
     });
   }
 
+  // HTTP key registration (first-come-first-served, locks after set)
+  private async handleRegisterKey(request: Request): Promise<Response> {
+    if (this.hmacKey) {
+      return new Response(JSON.stringify({ error: 'HMAC key already registered' }), {
+        status: 409,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    let body: { key?: string };
+    try { body = await request.json(); } catch {
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!body.key || typeof body.key !== 'string' || body.key.length < 32) {
+      return new Response(JSON.stringify({ error: 'key required, min 32 chars' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    this.hmacKey = body.key;
+    await this.state.storage.put('hmacKey', this.hmacKey);
+    return new Response(JSON.stringify({ ok: true, message: 'HMAC key registered' }), {
+      status: 201,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   // WebSocket message handler (called by platform after acceptWebSocket)
   async webSocketMessage(ws: WebSocket, message: string): Promise<void> {
     try {
@@ -144,7 +185,7 @@ export class PlayerDO implements DurableObject {
       if (data.type === 'ping') {
         ws.send(JSON.stringify({ type: 'pong' }));
       }
-      // Game page registers the HMAC key (established from player.json)
+      // Game page registers the HMAC key via WebSocket (same lock: first-come)
       if (data.type === 'register-key' && data.key && !this.hmacKey) {
         this.hmacKey = data.key;
         await this.state.storage.put('hmacKey', this.hmacKey);
