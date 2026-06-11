@@ -5,7 +5,7 @@ import { loadManifest } from './model-manager.js';
 import { initStock } from './stock.js';
 import { init as uiInit, processKeyboardInput } from './ui.js';
 import { init as fuelClientInit } from './fuel-client.js';
-import { init as soundInit } from './sound-system.js';
+import { init as soundInit } from './sound.js';
 
 async function main() {
   sceneInit();

@@ -21,7 +21,7 @@ import { init as cabinetInit, renderCabinet, captureThumbnail, setSceneCaptureFn
 import { getScene, getCamera, getRenderer, resetCamera, rotateModelLeft, rotateModelRight, rotateUp, rotateDown, zoomIn, zoomOut } from './scene.js';
 import { disconnect as fuelDisconnect } from './fuel-client.js';
 import { consumeStock, getStock, getCap, isAllSoldOut } from './stock.js';
-import * as sound from './sound-system.js';
+import * as sound from './sound.js';
 import * as banSystem from './ban-system.js';
 import * as market from './market.js';
 

@@ -1,5 +1,5 @@
 import { addTokens } from './game-state.js';
-import { playConnected, playDisconnected } from './sound-system.js';
+import { playConnected, playDisconnected } from './sound.js';
 
 const API_BASE = '';
 const PLAYER_KEY = 'tokensyber_player_id';
