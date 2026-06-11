@@ -18,7 +18,7 @@ const DAILY_REGENERATION_LIMIT = 3;
 const INJECTION_RATE_LIMIT = 10_000; // token/秒
 
 const DEFAULT_STATE = {
-  version: 7,
+  version: 8,
   currentPrint: {
     modelId: null,
     rarity: null,  // 用于计算 completion target
@@ -49,7 +49,7 @@ const DEFAULT_STATE = {
   },
   settings: {
     soundEnabled: true,
-    bgmEnabled: true,
+    bgmEnabled: false,
     quality: 'high',
   }
 };
@@ -119,6 +119,12 @@ export function load() {
     if (parsed.currentPrint && parsed.currentPrint.rarity === undefined) {
       parsed.currentPrint.rarity = parsed.currentPrint.modelId ? 'common' : null;
       parsed.version = 7;
+    }
+
+    // v7 → v8 迁移：BGM 改为默认关闭（opt-in），移除旧默认 true
+    if (parsed.version < 8 && parsed.settings) {
+      delete parsed.settings.bgmEnabled;
+      parsed.version = 8;
     }
 
     // 深合并，确保嵌套对象也有默认值

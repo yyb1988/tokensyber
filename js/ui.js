@@ -148,9 +148,9 @@ export function init() {
   if (savedSound === false) sound.setEnabled(false);
   updateSoundButton();
 
-  // 恢复背景音乐开关状态
+  // 恢复背景音乐开关状态（默认关闭，用户手动开启后持久化）
   const savedBgm = gameState.getState().settings?.bgmEnabled;
-  if (savedBgm === false) sound.setBgmEnabled(false);
+  sound.setBgmEnabled(savedBgm === true);
   updateBgmButton();
 
   // UI更新循环（每秒更新一次进度和时间显示）

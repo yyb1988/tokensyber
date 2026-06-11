@@ -10,7 +10,7 @@
 let audioCtx = null;
 let masterGain = null;
 let enabled = true;
-let bgmEnabled = true;
+let bgmEnabled = false;
 let userActivated = false; // 用户是否已交互（浏览器自动播放策略）
 
 // 背景音乐节点
