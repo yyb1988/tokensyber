@@ -5,6 +5,8 @@ const API_BASE = '';
 const PLAYER_KEY = 'tokensyber_player_id';
 const HMAC_KEY = 'tokensyber_hmac_key';
 const POLL_INTERVAL = 2000;
+const TEST_MODE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  && new URLSearchParams(window.location.search).has('test');
 
 let pollTimer = null;
 let lastKnownTotalTokens = 0;
@@ -16,6 +18,20 @@ let manuallyDisconnected = false;
 let lastDisplayedStatus = null;
 
 export function init() {
+  // 测试模式：跳过连接，直接显示为已就绪
+  if (TEST_MODE) {
+    const indicator = document.getElementById('fuel-connection');
+    if (indicator) {
+      indicator.className = 'fuel-indicator connected';
+      indicator.textContent = '●';
+      indicator.title = '测试模式 — 燃料无限';
+    }
+    const setupPanel = document.getElementById('fuel-setup');
+    if (setupPanel) setupPanel.classList.add('hidden');
+    setInterval(updateRateDisplay, 1000);
+    return;
+  }
+
   const playerId = getPlayerId();
   if (playerId) {
     connect(playerId);

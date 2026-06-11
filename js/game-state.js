@@ -10,12 +10,22 @@ const RARITY_COST = {
 };
 const DEFAULT_COST = RARITY_COST.common;
 const TOKENS_FOR_COMPLETION_DEBUG = 5_000;
-// 公网安全：?debug 仅在本地开发环境生效，公网强制关闭
-const DEBUG_MODE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-  && new URLSearchParams(window.location.search).has('debug');
+// 公网安全：?debug/?test 仅在本地开发环境生效，公网强制关闭
+const isLocal = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+const DEBUG_MODE = isLocal && new URLSearchParams(window.location.search).has('debug');
+const TEST_MODE = isLocal && new URLSearchParams(window.location.search).has('test');
+
+// 测试模式：极低消耗 + 无限燃料，便于快速验证游戏逻辑
+const TEST_RARITY_COST = {
+  common:    100,
+  rare:      200,
+  epic:      500,
+  legendary: 1000,
+};
 
 const DAILY_REGENERATION_LIMIT = 3;
-const INJECTION_RATE_LIMIT = 10_000; // token/秒
+const INJECTION_RATE_LIMIT = TEST_MODE ? 100_000 : 10_000; // 测试模式 10 倍速率
+const TEST_TANK_REFILL = 10_000_000; // 测试模式储液罐自动补满到此值
 
 const DEFAULT_STATE = {
   version: 8,
@@ -190,6 +200,7 @@ export function getAccumulatedTokens() {
 
 // 当前模型的算力消耗目标：调试模式 5K；否则按稀有度查表
 export function getCompletionTarget() {
+  if (TEST_MODE) return TEST_RARITY_COST[state.currentPrint.rarity] ?? TEST_RARITY_COST.common;
   if (DEBUG_MODE) return TOKENS_FOR_COMPLETION_DEBUG;
   const rarity = state.currentPrint.rarity;
   return RARITY_COST[rarity] ?? DEFAULT_COST;
@@ -197,6 +208,7 @@ export function getCompletionTarget() {
 
 // 给定稀有度的固定消耗（供 UI 在抽到模型前先展示）
 export function getCostForRarity(rarity) {
+  if (TEST_MODE) return TEST_RARITY_COST[rarity] ?? TEST_RARITY_COST.common;
   if (DEBUG_MODE) return TOKENS_FOR_COMPLETION_DEBUG;
   return RARITY_COST[rarity] ?? DEFAULT_COST;
 }
@@ -335,6 +347,10 @@ export function useRegeneration() {
 
 // 储液罐
 export function getTankBalance() {
+  // 测试模式：储液罐自动补满，无限燃料
+  if (TEST_MODE && state.tank.balance < TEST_TANK_REFILL / 2) {
+    state.tank.balance = TEST_TANK_REFILL;
+  }
   return state.tank.balance;
 }
 
