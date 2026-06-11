@@ -17,10 +17,10 @@ const TEST_MODE = isLocal && new URLSearchParams(window.location.search).has('te
 
 // 测试模式：极低消耗 + 无限燃料，便于快速验证游戏逻辑
 const TEST_RARITY_COST = {
-  common:    100,
-  rare:      200,
-  epic:      500,
-  legendary: 1000,
+  common:    500_000,
+  rare:      750_000,
+  epic:      1_000_000,
+  legendary: 1_000_000,
 };
 
 const DAILY_REGENERATION_LIMIT = 3;

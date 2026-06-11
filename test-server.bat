@@ -6,7 +6,7 @@ echo ========================================
 echo.
 echo   测试模式特性：
 echo     - 燃料无限（储液罐自动补满）
-echo     - 模型消耗极低（100~1000 token）
+echo     - 模型消耗降低（50万~100万 token）
 echo     - 注入速率 10 倍（100K/s）
 echo     - 无需连接 Claude Code 插件
 echo.
