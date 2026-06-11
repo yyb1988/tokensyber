@@ -12,6 +12,7 @@ let tokenHistory = [];
 let lastFuelPulseTime = 0;
 let hasEverConnected = false;
 let manuallyDisconnected = false;
+let lastDisplayedStatus = null;
 
 export function init() {
   const playerId = getPlayerId();
@@ -200,8 +201,12 @@ function updateStatus(status) {
   const hasPlayerId = !!getPlayerId();
   if (!indicator) return;
 
+  // 仅在状态变化时播放连接/断开音效，避免轮询时重复播放
+  const statusChanged = status !== lastDisplayedStatus;
+  lastDisplayedStatus = status;
+
   if (status === 'connected') {
-    playConnected();
+    if (statusChanged) playConnected();
     indicator.className = 'fuel-indicator connected';
     indicator.textContent = '●';
     indicator.title = '燃料泵已连接';
@@ -216,7 +221,7 @@ function updateStatus(status) {
     if (setupPanel) setupPanel.classList.add('hidden');
   } else {
     // disconnected
-    playDisconnected();
+    if (statusChanged) playDisconnected();
     indicator.className = 'fuel-indicator disconnected';
     indicator.textContent = '●';
     indicator.title = hasPlayerId ? '燃料泵未连接 — 可以更换 Player ID' : '燃料泵未连接';
