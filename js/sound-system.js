@@ -304,10 +304,18 @@ export function stopBgm() {
   bgmPadOscs = [];
 }
 
+// ========== DEBUG: 识别重复音效来源 ==========
+const _dbg = (...args) => {
+  const stack = new Error().stack;
+  const caller = stack?.split('\n')[2]?.trim() || stack;
+  console.warn('[Sound]', new Date().toISOString().slice(11, 23), ...args, '\n  at', caller);
+};
+
 // ========== UI 音效 ==========
 
 export function playClick() {
   if (!enabled) return;
+  _dbg('click');
   const ctx = ensureCtx(); if (!ctx) return;
   const t = ctx.currentTime;
   osc(ctx, 'sine', 1200, t, t + 0.06, 0.15);
@@ -315,6 +323,7 @@ export function playClick() {
 
 export function playSuccess() {
   if (!enabled) return;
+  _dbg('success');
   const ctx = ensureCtx(); if (!ctx) return;
   const t = ctx.currentTime;
   osc(ctx, 'sine', 880, t, t + 0.15, 0.2);
@@ -323,6 +332,7 @@ export function playSuccess() {
 
 export function playError() {
   if (!enabled) return;
+  _dbg('error');
   const ctx = ensureCtx(); if (!ctx) return;
   const t = ctx.currentTime;
   osc(ctx, 'sawtooth', 200, t, t + 0.2, 0.15);
@@ -331,6 +341,7 @@ export function playError() {
 
 export function playCoin() {
   if (!enabled) return;
+  _dbg('coin');
   const ctx = ensureCtx(); if (!ctx) return;
   const t = ctx.currentTime;
   osc(ctx, 'sine', 2400, t, t + 0.08, 0.2);
@@ -341,6 +352,7 @@ export function playCoin() {
 
 export function playLock() {
   if (!enabled) return;
+  _dbg('lock');
   const ctx = ensureCtx(); if (!ctx) return;
   const t = ctx.currentTime;
   filteredNoise(ctx, t, t + 0.15, 3000, 5, 0.25);
@@ -349,6 +361,7 @@ export function playLock() {
 
 export function playUnlock() {
   if (!enabled) return;
+  _dbg('unlock');
   const ctx = ensureCtx(); if (!ctx) return;
   const t = ctx.currentTime;
   filteredNoise(ctx, t, t + 0.08, 5000, 8, 0.2);
@@ -360,6 +373,7 @@ export function playUnlock() {
 
 export function playCollect() {
   if (!enabled) return;
+  _dbg('collect');
   const ctx = ensureCtx(); if (!ctx) return;
   const t = ctx.currentTime;
   const notes = [523, 659, 784, 1047];
@@ -372,6 +386,7 @@ export function playCollect() {
 
 export function playRevealCommon() {
   if (!enabled) return;
+  _dbg('reveal-common');
   const ctx = ensureCtx(); if (!ctx) return;
   const t = ctx.currentTime;
   osc(ctx, 'triangle', 440, t, t + 0.3, 0.15);
@@ -381,6 +396,7 @@ export function playRevealCommon() {
 
 export function playRevealRare() {
   if (!enabled) return;
+  _dbg('reveal-rare');
   const ctx = ensureCtx(); if (!ctx) return;
   const t = ctx.currentTime;
   osc(ctx, 'sine', 523, t, t + 0.4, 0.18);
@@ -391,6 +407,7 @@ export function playRevealRare() {
 
 export function playRevealEpic() {
   if (!enabled) return;
+  _dbg('reveal-epic');
   const ctx = ensureCtx(); if (!ctx) return;
   const t = ctx.currentTime;
   const chord = [440, 554, 659, 880];
@@ -412,6 +429,7 @@ export function playRevealEpic() {
 
 export function playRevealLegendary() {
   if (!enabled) return;
+  _dbg('reveal-legendary');
   const ctx = ensureCtx(); if (!ctx) return;
   const t = ctx.currentTime;
   osc(ctx, 'sine', 55, t, t + 0.4, 0.3);
@@ -447,6 +465,7 @@ export function playReveal(rarity) {
 
 export function playRegenerate() {
   if (!enabled) return;
+  _dbg('regenerate');
   const ctx = ensureCtx(); if (!ctx) return;
   const t = ctx.currentTime;
   const sweep = ctx.createOscillator();
@@ -469,6 +488,7 @@ export function playExtract() {
 
 export function playPrintComplete() {
   if (!enabled) return;
+  _dbg('print-complete');
   const ctx = ensureCtx(); if (!ctx) return;
   const t = ctx.currentTime;
   const notes = [330, 440, 554, 659, 880, 1047];
@@ -483,6 +503,7 @@ export function playPrintComplete() {
 
 export function playFuelPulse() {
   if (!enabled) return;
+  _dbg('fuel-pulse');
   const ctx = ensureCtx(); if (!ctx) return;
   const t = ctx.currentTime;
   osc(ctx, 'sine', 100, t, t + 0.05, 0.06);
@@ -493,6 +514,7 @@ export function playFuelPulse() {
 
 export function playConnected() {
   if (!enabled) return;
+  _dbg('connected');
   const ctx = ensureCtx(); if (!ctx) return;
   const t = ctx.currentTime;
   osc(ctx, 'sine', 440, t, t + 0.15, 0.15);
@@ -502,6 +524,7 @@ export function playConnected() {
 
 export function playDisconnected() {
   if (!enabled) return;
+  _dbg('disconnected');
   const ctx = ensureCtx(); if (!ctx) return;
   const t = ctx.currentTime;
   osc(ctx, 'sine', 440, t, t + 0.2, 0.12);
