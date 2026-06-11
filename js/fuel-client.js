@@ -114,12 +114,19 @@ async function registerHmacKey(playerId, hmacKey) {
   return false;
 }
 
+let playerJsonAutoHideTimer = null;
+
 function showPlayerJsonGuide(playerId, hmacKey) {
   const guideEl = document.getElementById('guide-player-json');
   if (!guideEl) return;
   const json = JSON.stringify({ playerId, hmacKey }, null, 2);
   guideEl.querySelector('.player-json-code').textContent = json;
   guideEl.classList.remove('hidden');
+  // 30 秒后自动隐藏敏感密钥信息
+  if (playerJsonAutoHideTimer) clearTimeout(playerJsonAutoHideTimer);
+  playerJsonAutoHideTimer = setTimeout(() => {
+    guideEl.classList.add('hidden');
+  }, 30_000);
 }
 
 // ========== Polling Connection ==========
